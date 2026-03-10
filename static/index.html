@@ -1,0 +1,299 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多模态物理实验教学 Agent</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: "class" };
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar glass-panel">
+      <div class="brand-row">
+        <div class="brand-icon"><i class="ri-flask-line"></i></div>
+        <div>
+          <h1 class="brand-title">Physics Agent</h1>
+          <p class="brand-subtitle">多模态物理实验教学</p>
+        </div>
+      </div>
+
+      <div class="quick-action-row">
+        <button id="newConversationBtn" type="button" class="primary-side-btn">
+          <i class="ri-chat-new-line"></i>
+          <span>开始新对话</span>
+        </button>
+        <button id="newFolderBtn" type="button" class="ghost-side-btn" title="新建项目">
+          <i class="ri-folder-add-line"></i>
+          <span>新建项目</span>
+        </button>
+      </div>
+
+      <section class="sidebar-section upload-section">
+        <div class="section-title-row">
+          <h2 class="section-title">文件上传</h2>
+          <div class="section-actions">
+            <span class="section-meta">PDF / DOCX / 图片 / 音频</span>
+            <button id="clearDocsBtn" type="button" class="text-btn">清空文档</button>
+          </div>
+        </div>
+
+        <label id="uploadDropzone" class="upload-dropzone" for="fileInput">
+          <i class="ri-upload-cloud-2-line"></i>
+          <p>点击或拖拽文件到这里</p>
+          <span>支持多文件上传</span>
+        </label>
+        <input id="fileInput" class="hidden" type="file" multiple accept=".pdf,.docx,image/*,audio/*" />
+
+        <div id="uploadStatus" class="upload-status">未上传文件</div>
+        <ul id="uploadedFiles" class="uploaded-files"></ul>
+
+        <div id="pendingImageBar" class="pending-image hidden">
+          <i class="ri-image-line"></i>
+          <span id="pendingImageText">图片已就绪，下一条消息将触发视觉模型</span>
+          <button id="clearPendingImageBtn" type="button" class="icon-btn" title="移除图片">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+
+        <div id="pendingAudioBar" class="pending-image pending-audio hidden">
+          <i class="ri-mic-line"></i>
+          <span id="pendingAudioText">语音已就绪，下一条消息将触发音频模型</span>
+          <button id="clearPendingAudioBtn" type="button" class="icon-btn" title="移除语音">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </section>
+
+      <section class="sidebar-section phet-trigger-section">
+        <button id="togglePhetWorkspaceBtn" type="button" class="phet-side-btn" aria-expanded="false">
+          <span class="phet-side-btn-label">
+            <i class="ri-rocket-2-line"></i>
+            <span>课外实验仿真</span>
+          </span>
+          <i class="ri-layout-right-2-line"></i>
+        </button>
+      </section>
+
+      <!-- 只保留实验库空容器，列表由 app.js 动态生成 -->
+      <section class="sidebar-section lab-section">
+        <button id="openLabMenuBtn" type="button" class="lab-menu-btn" aria-expanded="false">
+          <span class="lab-menu-btn-label">
+            <i class="ri-flask-line"></i>
+            <span>物理实验库</span>
+          </span>
+          <i class="ri-arrow-down-s-line"></i>
+        </button>
+
+        <section id="labMenuPanel" class="floating-menu accordion-panel hidden" aria-label="物理实验库菜单">
+          <div class="menu-header">
+            <h3>物理实验库</h3>
+            <button id="closeLabMenuBtn" type="button" class="icon-btn" aria-label="收起菜单">
+              <i class="ri-close-line"></i>
+            </button>
+          </div>
+          <div id="experimentLibraryContainer"></div>
+        </section>
+      </section>
+
+      <section class="sidebar-section history-section session-nav-section">
+        <div class="session-nav-toolbar">
+          <span class="section-meta">项目与对话</span>
+        </div>
+        <ul id="historyList" class="history-list session-tree"></ul>
+      </section>
+    </aside>
+
+    <div id="contentShell" class="content-shell">
+      <main class="chat-main glass-panel">
+        <header class="chat-header">
+          <div>
+            <h2 class="chat-title">实验对话区</h2>
+            <p class="chat-subtitle">上传资料，发起提问，或通过实验库快捷学习</p>
+          </div>
+          <div class="status-pills">
+            <span id="modelBadge" class="pill pill-blue">qwen-plus</span>
+            <span class="pill pill-green">在线</span>
+          </div>
+        </header>
+
+        <section id="chatMessages" class="chat-messages"></section>
+
+        <form id="chatForm" class="chat-input-wrap" autocomplete="off">
+          <textarea id="chatInput" rows="1" data-max-height="148" placeholder="输入你的问题，支持 Markdown / LaTeX（Enter 发送，Shift+Enter 换行）"></textarea>
+          <div class="chat-action-group">
+            <button id="recordBtn" type="button" class="secondary-btn action-btn" aria-label="录音" title="开始录音">
+              <i class="ri-mic-line"></i>
+            </button>
+            <button id="sendBtn" type="submit" class="action-btn" aria-label="发送" title="发送">
+              <i class="ri-send-plane-2-fill"></i>
+            </button>
+          </div>
+        </form>
+      </main>
+
+      <aside id="phetWorkspace" class="phet-workspace glass-panel hidden" aria-label="课外实验仿真工作区">
+        <div class="phet-workspace-inner">
+          <header class="phet-header">
+            <div>
+              <h2 class="phet-title">课外实验仿真</h2>
+            </div>
+            <button id="closePhetWorkspaceBtn" type="button" class="icon-btn" aria-label="关闭课外实验仿真">
+              <i class="ri-close-line"></i>
+            </button>
+          </header>
+
+          <div class="phet-toolbar">
+            <label class="phet-search" for="phetSearchInput">
+              <i class="ri-search-line"></i>
+              <input id="phetSearchInput" type="search" placeholder="搜索实验名称或研究主题" />
+            </label>
+          </div>
+
+          <div id="phetTopicTabs" class="phet-topic-tabs"></div>
+
+          <div class="phet-body">
+            <aside class="phet-directory">
+              <div id="phetCatalogList" class="phet-catalog-list"></div>
+            </aside>
+
+            <section class="phet-detail">
+              <div id="phetEmptyState" class="phet-empty-state">
+                <div class="phet-empty-icon"><i class="ri-flask-line"></i></div>
+                <h3>选择一个课外实验</h3>
+                <p>右侧将呈现实验界面、原理概述、观测维度与界面术语引导。</p>
+              </div>
+
+              <div id="phetDetailContent" class="phet-detail-content hidden">
+                <div class="phet-detail-header">
+                  <div>
+                    <div class="phet-detail-title-row">
+                      <h3 id="phetDetailTitle"></h3>
+                      <span id="phetLanguageBadge" class="phet-language-badge"></span>
+                    </div>
+                    <p id="phetDetailMeta" class="phet-detail-meta"></p>
+                  </div>
+                  <div class="phet-detail-links">
+                    <a id="phetOpenNewWindowLink" class="phet-link-btn phet-link-btn-secondary" href="#" target="_blank" rel="noreferrer">新窗口打开仿真</a>
+                  </div>
+                </div>
+
+                <div id="phetFrameNotice" class="phet-frame-notice hidden">
+                  当前浏览器可能阻止了嵌入式仿真，可通过上方按钮在新窗口继续观察。
+                </div>
+
+                <div class="phet-frame-wrap">
+                  <div id="phetFrameLoading" class="phet-frame-loading">正在载入仿真界面...</div>
+                  <iframe id="phetFrame" class="phet-frame" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                </div>
+
+                <div class="phet-ask-panel">
+                  <div class="phet-ask-head">
+                    <label for="phetQuestionInput">结合当前实验提问</label>
+                    <span class="phet-context-hint">提问将自动带入实验主题、原理概述与仿真场景。</span>
+                  </div>
+                  <div class="phet-ask-row">
+                    <textarea id="phetQuestionInput" rows="3" data-max-height="136" placeholder="例如：这个实验中最值得优先控制和观察的变量是什么？"></textarea>
+                    <button id="phetAskBtn" type="button" class="phet-ask-btn">结合当前实验提问</button>
+                  </div>
+                </div>
+
+                <div class="phet-detail-scroll">
+                  <div class="phet-info-grid">
+                    <article class="phet-info-card">
+                      <h4>实验原理概述</h4>
+                      <p id="phetIntroText" class="phet-intro-text"></p>
+                    </article>
+                    <article class="phet-info-card">
+                      <h4>关键观测维度</h4>
+                      <ul id="phetObservationList" class="phet-bullet-list"></ul>
+                    </article>
+                    <article class="phet-info-card">
+                      <h4>研究问题建议</h4>
+                      <div id="phetQuestionHintList" class="phet-suggestion-list"></div>
+                    </article>
+                    <article class="phet-info-card">
+                      <h4>界面术语引导</h4>
+                      <ul id="phetInterfaceGuidanceList" class="phet-bullet-list"></ul>
+                    </article>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <aside id="quickJumpPanel" class="quick-jump-panel hidden" aria-label="快捷跳转">
+    <div id="quickJumpList" class="quick-jump-list"></div>
+  </aside>
+
+  <div id="simulationModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="simulationModalTitle">
+    <div class="simulation-modal glass-panel">
+      <div class="modal-header">
+        <div>
+          <h3 id="simulationModalTitle">迈克尔逊干涉仪仿真</h3>
+          <p>等倾干涉圆环 · 参数联动观察</p>
+        </div>
+        <button id="closeSimulationBtn" type="button" class="icon-btn" aria-label="关闭仿真窗口">
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+
+      <div class="simulation-canvas-wrap">
+        <canvas id="simulationCanvas"></canvas>
+        <div id="simReadout" class="sim-readout">λ=632.8nm · d=0.000μm</div>
+      </div>
+
+      <div class="simulation-controls">
+        <div class="control-row">
+          <div class="control-head">
+            <label for="simLambdaRange">激光波长 λ</label>
+            <span id="simLambdaValue">632.8 nm</span>
+          </div>
+          <input id="simLambdaRange" type="range" min="400" max="700" step="0.1" value="632.8" />
+        </div>
+
+        <div class="control-row">
+          <div class="control-head">
+            <label for="simDisplacementRange">微动镜位移 d (相对零位)</label>
+            <span id="simDisplacementValue">+0.000 μm</span>
+          </div>
+          <input id="simDisplacementRange" type="range" min="-8" max="8" step="0.01" value="0" />
+        </div>
+
+        <div class="sim-metrics">
+          <div><span>颜色</span><strong id="simColorName">红光</strong></div>
+          <div><span>Δ(2d)</span><strong id="simOpdValue">+0.0 nm</strong></div>
+          <div><span>估算级次 N</span><strong id="simFringeCount">0.00</strong></div>
+        </div>
+
+        <button id="invokeAgentFromSimBtn" class="invoke-agent-btn" type="button">召唤 Agent 解析</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastRoot" class="hidden" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
