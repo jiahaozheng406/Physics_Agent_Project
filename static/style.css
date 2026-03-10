@@ -1743,6 +1743,19 @@ body::before {
   margin-top: 8px;
 }
 
+.phet-text-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.phet-text-block {
+  color: #33445f;
+  font-size: 13px;
+  line-height: 1.72;
+  margin: 0;
+}
+
 .phet-suggestion-list {
   display: flex;
   flex-direction: column;
@@ -1780,8 +1793,8 @@ body::before {
 
 .phet-ask-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 12px;
   flex-wrap: wrap;
 }

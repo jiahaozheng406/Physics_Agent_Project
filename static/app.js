@@ -12,7 +12,7 @@
     { id: "oscilloscope", name: "数字示波器的调整和使用" },
     { id: "torsion-pendulum", name: "扭摆法测量物体的转动惯量" },
     { id: "dielectric-constant", name: "电介质电容率的测量" },
-    { id: "spectrometer-prism", name: "分光计的调节和棱镜顶角的测定" },
+    { id: "spectrometer-prism", name: "分光计调节和棱镜顶角的测定" },
     { id: "franck-hertz", name: "弗兰克-赫兹实验" },
     { id: "bohr-resonance", name: "波尔共振仪研究受迫振动" },
     { id: "grating-spectrum", name: "光栅原子光谱的定性研究" },
@@ -45,10 +45,14 @@
       total: 0,
       groups: [],
       activeTopic: "all",
-      search: "",
       selectedSlug: "",
       frameReady: false,
       frameTimeoutId: 0,
+      captureStream: null,
+      captureVideo: null,
+      captureCanvas: null,
+      captureReady: false,
+      captureNoticeShown: false,
     },
   };
 
@@ -169,7 +173,6 @@
     closePhetWorkspaceBtn: document.getElementById("closePhetWorkspaceBtn"),
     contentShell: document.getElementById("contentShell"),
     phetWorkspace: document.getElementById("phetWorkspace"),
-    phetSearchInput: document.getElementById("phetSearchInput"),
     phetCatalogMeta: document.getElementById("phetCatalogMeta"),
     phetTopicTabs: document.getElementById("phetTopicTabs"),
     phetCatalogList: document.getElementById("phetCatalogList"),
@@ -239,7 +242,7 @@
     showToast(`浼氳瘽鎭㈠澶辫触锛?{error.message}`);
     return;
     appendAgentMessage(
-      "欢迎使用多模态物理实验教学 Agent。\n\n点击左侧【🧲 物理实验库】可快速选择 11 个经典实验。当前已支持仿真：迈克尔逊干涉、牛顿环、惠斯通电桥、波尔共振、分光计棱镜顶角、扭摆法转动惯量。"
+      "欢迎使用多模态物理实验教学 Agent。\n\n点击左侧【🧲 物理实验库】可快速选择 11 个经典实验。当前已支持仿真：迈克尔逊干涉、牛顿环、惠斯通电桥、波尔共振、分光计调节与棱镜顶角、扭摆法转动惯量。"
     );
     showToast(`会话恢复失败：${error.message}`);
   });
@@ -330,13 +333,6 @@
       closePhetWorkspace();
     });
 
-    els.phetSearchInput?.addEventListener("input", (event) => {
-      APP.phet.search = String(event.target.value || "").trim();
-      ensurePhetSelection();
-      renderPhetCatalog();
-      renderPhetDetail();
-    });
-
     els.phetTopicTabs?.addEventListener("click", (event) => {
       const button = event.target.closest("[data-topic-key]");
       if (!button) return;
@@ -396,6 +392,10 @@
       await startRecording();
     });
 
+    window.addEventListener("beforeunload", () => {
+      stopPhetCaptureStream();
+    });
+
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".session-tree")) {
         closeFloatingMenus();
@@ -427,6 +427,11 @@
         if (action === "rename-folder" && folderId) {
           closeFloatingMenus();
           await renameFolderInteractive(folderId);
+          return;
+        }
+        if (action === "new-session-in-folder" && folderId) {
+          closeFloatingMenus();
+          await createProjectConversation(folderId);
           return;
         }
         if (action === "delete-folder" && folderId) {
@@ -624,7 +629,7 @@
       await loadSessionCatalog();
       return;
       appendAgentMessage(
-        "欢迎使用多模态物理实验教学 Agent。\n\n点击左侧【🧲 物理实验库】可快速选择 11 个经典实验。当前已支持仿真：迈克尔逊干涉、牛顿环、惠斯通电桥、波尔共振、分光计棱镜顶角、扭摆法转动惯量。"
+        "欢迎使用多模态物理实验教学 Agent。\n\n点击左侧【🧲 物理实验库】可快速选择 11 个经典实验。当前已支持仿真：迈克尔逊干涉、牛顿环、惠斯通电桥、波尔共振、分光计调节与棱镜顶角、扭摆法转动惯量。"
       );
       await loadSessionCatalog();
     } catch (error) {
@@ -659,6 +664,28 @@
       await switchConversation(data.session_id, { isNew: true });
     } catch (error) {
       showToast(`创建新对话失败：${error.message}`);
+    }
+  }
+
+  async function createProjectConversation(folderId) {
+    if (!folderId) return;
+    try {
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "新对话", folder_id: folderId }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || `HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      await switchConversation(data.session_id, { isNew: true });
+      APP.folderOpenMap[folderId] = true;
+      saveFolderOpenMap(APP.folderOpenMap);
+      await loadSessionCatalog();
+    } catch (error) {
+      showToast(`项目内新建对话失败：${error.message}`);
     }
   }
 
@@ -800,26 +827,10 @@
   }
 
   function getFilteredPhetGroups() {
-    const search = (APP.phet.search || "").trim().toLowerCase();
     const activeTopic = APP.phet.activeTopic || "all";
     return (APP.phet.groups || [])
       .filter((group) => activeTopic === "all" || group.topic_key === activeTopic)
-      .map((group) => {
-        const sims = (Array.isArray(group.sims) ? group.sims : []).filter((sim) => {
-          if (!search) return true;
-          const haystack = [
-            sim.title_zh,
-            sim.title_en,
-            sim.topic_zh,
-            sim.topic_en,
-            sim.intro_zh,
-          ]
-            .join(" ")
-            .toLowerCase();
-          return haystack.includes(search);
-        });
-        return { ...group, sims };
-      })
+      .map((group) => ({ ...group, sims: Array.isArray(group.sims) ? group.sims : [] }))
       .filter((group) => group.sims.length);
   }
 
@@ -856,7 +867,7 @@
       return;
     }
     if (!groups.length) {
-      els.phetCatalogList.innerHTML = `<div class="phet-empty-list">没有找到匹配的实验，请换个关键词试试。</div>`;
+      els.phetCatalogList.innerHTML = `<div class="phet-empty-list">当前主题下暂无可展示的实验。</div>`;
       return;
     }
 
@@ -917,9 +928,7 @@
       els.phetIntroText.textContent = sim.intro_zh || "该实验当前缺少详细概述，建议先进入仿真界面识别变量、读数与现象，再结合规律提出问题。";
     }
     if (els.phetObservationList) {
-      els.phetObservationList.innerHTML = (sim.observation_points || [])
-        .map((item) => `<li>${escapeHtml(item)}</li>`)
-        .join("");
+      renderTextBlocks(els.phetObservationList, sim.observation_points || []);
     }
     if (els.phetQuestionHintList) {
       els.phetQuestionHintList.innerHTML = (sim.suggested_questions || [])
@@ -933,9 +942,11 @@
         .join("");
     }
     if (els.phetInterfaceGuidanceList) {
-      els.phetInterfaceGuidanceList.innerHTML = (sim.interface_guidance_zh || [])
-        .map((item) => `<li>${escapeHtml(item)}</li>`)
-        .join("");
+      const guidanceBlocks = [];
+      if (sim.layout_zh) guidanceBlocks.push(sim.layout_zh);
+      (sim.screen_flow_zh || []).forEach((item) => guidanceBlocks.push(item));
+      (sim.controls_zh || []).slice(0, 4).forEach((item) => guidanceBlocks.push(item));
+      renderTextBlocks(els.phetInterfaceGuidanceList, guidanceBlocks);
     }
     if (els.phetQuestionInput) {
       els.phetQuestionInput.placeholder = `围绕“${sim.title_zh || sim.title_en || sim.slug}”继续提出分析问题`;
@@ -967,6 +978,120 @@
     }, 8000);
   }
 
+  function renderTextBlocks(container, items) {
+    if (!container) return;
+    const blocks = (Array.isArray(items) ? items : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    container.innerHTML = blocks.map((item) => `<div class="phet-text-block">${escapeHtml(item)}</div>`).join("");
+  }
+
+  function stopPhetCaptureStream() {
+    const stream = APP.phet.captureStream;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+    APP.phet.captureStream = null;
+    APP.phet.captureReady = false;
+    if (APP.phet.captureVideo) {
+      APP.phet.captureVideo.pause();
+      APP.phet.captureVideo.srcObject = null;
+    }
+  }
+
+  async function ensurePhetCaptureStream() {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      throw new Error("当前浏览器不支持标签页共享截图");
+    }
+
+    const activeTrack = APP.phet.captureStream?.getVideoTracks?.()[0];
+    if (activeTrack && activeTrack.readyState === "live" && APP.phet.captureReady) {
+      return APP.phet.captureStream;
+    }
+
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        preferCurrentTab: true,
+        selfBrowserSurface: "include",
+        surfaceSwitching: "exclude",
+      },
+      audio: false,
+    });
+
+    const video = document.createElement("video");
+    video.playsInline = true;
+    video.muted = true;
+    video.srcObject = stream;
+
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = () => {
+        video
+          .play()
+          .then(resolve)
+          .catch(reject);
+      };
+      video.onerror = () => reject(new Error("无法初始化仿真截图流"));
+    });
+
+    stream.getVideoTracks().forEach((track) => {
+      track.onended = () => {
+        APP.phet.captureReady = false;
+        APP.phet.captureStream = null;
+      };
+    });
+
+    APP.phet.captureStream = stream;
+    APP.phet.captureVideo = video;
+    APP.phet.captureCanvas = APP.phet.captureCanvas || document.createElement("canvas");
+    APP.phet.captureReady = true;
+    return stream;
+  }
+
+  async function capturePhetWorkspaceImage() {
+    if (!els.phetFrame) return null;
+    try {
+      await ensurePhetCaptureStream();
+    } catch (error) {
+      if (!APP.phet.captureNoticeShown) {
+        showToast(`本次未获取到当前仿真画面，已按文本模式继续：${error.message}`);
+        APP.phet.captureNoticeShown = true;
+      }
+      return null;
+    }
+
+    const video = APP.phet.captureVideo;
+    const canvas = APP.phet.captureCanvas;
+    if (!video || !canvas || !APP.phet.captureReady) {
+      return null;
+    }
+
+    const rect = els.phetFrame.getBoundingClientRect();
+    if (rect.width < 20 || rect.height < 20) {
+      return null;
+    }
+
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || rect.width;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || rect.height;
+    const scaleX = (video.videoWidth || viewportWidth) / viewportWidth;
+    const scaleY = (video.videoHeight || viewportHeight) / viewportHeight;
+    const sourceX = Math.max(0, Math.floor(rect.left * scaleX));
+    const sourceY = Math.max(0, Math.floor(rect.top * scaleY));
+    const sourceW = Math.max(1, Math.floor(rect.width * scaleX));
+    const sourceH = Math.max(1, Math.floor(rect.height * scaleY));
+
+    canvas.width = sourceW;
+    canvas.height = sourceH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.clearRect(0, 0, sourceW, sourceH);
+    ctx.drawImage(video, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+    return {
+      base64: dataUrl,
+      mime: "image/jpeg",
+    };
+  }
+
   async function askFromPhetWorkspace() {
     const sim = findPhetSimulation();
     const question = String(els.phetQuestionInput?.value || "").trim();
@@ -979,7 +1104,13 @@
       return;
     }
 
+    const hiddenImage = await capturePhetWorkspaceImage();
+    if (hiddenImage) {
+      APP.phet.captureNoticeShown = false;
+    }
+
     await sendMessage(question, {
+      hiddenImage,
       externalLabContext: {
         provider: "phet",
         slug: sim.slug,
@@ -988,6 +1119,15 @@
         topic_zh: sim.topic_zh || "",
         intro_zh: sim.intro_zh || "",
         interface_guidance_zh: Array.isArray(sim.interface_guidance_zh) ? sim.interface_guidance_zh : [],
+        layout_zh: sim.layout_zh || "",
+        screen_flow_zh: Array.isArray(sim.screen_flow_zh) ? sim.screen_flow_zh : [],
+        controls_zh: Array.isArray(sim.controls_zh) ? sim.controls_zh : [],
+        effects_zh: Array.isArray(sim.effects_zh) ? sim.effects_zh : [],
+        readouts_zh: Array.isArray(sim.readouts_zh) ? sim.readouts_zh : [],
+        terms_zh: Array.isArray(sim.terms_zh) ? sim.terms_zh : [],
+        hidden_tutor_prompt_zh: sim.hidden_tutor_prompt_zh || "",
+        ui_profile_version: sim.ui_profile_version || "",
+        needs_manual_review: Boolean(sim.needs_manual_review),
         sim_url: sim.embed_url || "",
         official_page_url: sim.official_page_url || "",
         has_official_zh: Boolean(sim.has_official_zh),
@@ -3293,7 +3433,7 @@
         ? `我分别读得 θ1=${theta1.toFixed(2)}°、θ2=${theta2.toFixed(2)}°，已经记录了两次反射位置。`
         : `我当前望远镜角度为 θ=${normalizeDeg(p.telescopeDeg).toFixed(2)}°，目前只捕捉到一侧反射亮线，还在继续搜索另一侧。`;
 
-      return `我当前正在做“分光计的调节和棱镜顶角的测定”实验。待测棱镜顶角设定为 A=${p.prismAngleDeg.toFixed(2)}°，理论反射夹角为 φ=${refs.phiDeg.toFixed(2)}°。${captureHint}。请根据反射法公式 A = \\frac{|\\theta_1 - \\theta_2|}{2}，说明如何由两次读数求出棱镜顶角，并解释双侧反射对称出现的原因。同时比较我当前测得的 A_meas=${measuredA.toFixed(2)}° 与设定值是否一致。`;
+      return `我当前正在做“分光计调节和棱镜顶角的测定”实验。待测棱镜顶角设定为 A=${p.prismAngleDeg.toFixed(2)}°，理论反射夹角为 φ=${refs.phiDeg.toFixed(2)}°。${captureHint}。请根据反射法公式 A = \\frac{|\\theta_1 - \\theta_2|}{2}，说明如何由两次读数求出棱镜顶角，并解释双侧反射对称出现的原因。同时比较我当前测得的 A_meas=${measuredA.toFixed(2)}° 与设定值是否一致。`;
     }
 
     if (expId === "torsion-pendulum") {
@@ -3514,7 +3654,7 @@
     if (!Array.isArray(data.messages) || !data.messages.length) {
       return;
       appendAgentMessage(
-        "欢迎使用多模态物理实验教学 Agent。\n\n点击左侧【🧲 物理实验库】可快速选择 11 个经典实验。当前已支持仿真：迈克尔逊干涉、牛顿环、惠斯通电桥、波尔共振、分光计棱镜顶角、扭摆法转动惯量。"
+        "欢迎使用多模态物理实验教学 Agent。\n\n点击左侧【🧲 物理实验库】可快速选择 11 个经典实验。当前已支持仿真：迈克尔逊干涉、牛顿环、惠斯通电桥、波尔共振、分光计调节与棱镜顶角、扭摆法转动惯量。"
       );
     }
   }
@@ -3545,7 +3685,10 @@
   }
 
   async function sendMessage(text, options = {}) {
-    if (APP.sending || (!text && !APP.pendingImage && !APP.pendingAudio)) return;
+    const hiddenImage = options.hiddenImage || null;
+    const effectiveImage = hiddenImage || APP.pendingImage;
+    const effectiveAudio = hiddenImage ? null : APP.pendingAudio;
+    if (APP.sending || (!text && !effectiveImage && !effectiveAudio)) return;
 
     APP.sending = true;
     if (els.sendBtn) els.sendBtn.disabled = true;
@@ -3575,15 +3718,15 @@
         payload.external_lab_context = options.externalLabContext;
       }
 
-      if (APP.pendingImage?.base64) {
-        payload.image_b64 = APP.pendingImage.base64;
-        payload.image_base64 = APP.pendingImage.base64;
-        payload.image_mime = APP.pendingImage.mime;
+      if (effectiveImage?.base64) {
+        payload.image_b64 = effectiveImage.base64;
+        payload.image_base64 = effectiveImage.base64;
+        payload.image_mime = effectiveImage.mime;
       }
 
-      if (APP.pendingAudio?.base64) {
-        payload.audio_base64 = APP.pendingAudio.base64;
-        payload.audio_mime = APP.pendingAudio.mime;
+      if (effectiveAudio?.base64) {
+        payload.audio_base64 = effectiveAudio.base64;
+        payload.audio_mime = effectiveAudio.mime;
       }
 
       const response = await fetch("/api/chat", {
@@ -3614,8 +3757,12 @@
         if (data.model && els.modelBadge) {
           els.modelBadge.textContent = data.model;
         }
-        APP.pendingImage = null;
-        APP.pendingAudio = null;
+        if (!hiddenImage) {
+          APP.pendingImage = null;
+        }
+        if (effectiveAudio?.base64) {
+          APP.pendingAudio = null;
+        }
         updatePendingAttachmentBars();
         await loadSessionCatalog();
         return;
@@ -3682,8 +3829,12 @@
         appendAgentMessage(fullAnswer || "模型未返回可用结果");
       }
 
-      APP.pendingImage = null;
-      APP.pendingAudio = null;
+      if (!hiddenImage) {
+        APP.pendingImage = null;
+      }
+      if (effectiveAudio?.base64) {
+        APP.pendingAudio = null;
+      }
       updatePendingAttachmentBars();
       await loadSessionCatalog();
     } catch (error) {
@@ -3938,6 +4089,10 @@
                 <i class="ri-more-2-fill"></i>
               </button>
               <div class="row-popover-menu${menuOpen ? "" : " hidden"}">
+                <button type="button" class="row-popover-item" data-action="new-session-in-folder" data-folder-id="${project.id}">
+                  <i class="ri-chat-new-line"></i>
+                  <span>新建对话</span>
+                </button>
                 <button type="button" class="row-popover-item" data-action="rename-folder" data-folder-id="${project.id}">
                   <i class="ri-edit-line"></i>
                   <span>重命名项目</span>

@@ -157,13 +157,6 @@
             </button>
           </header>
 
-          <div class="phet-toolbar">
-            <label class="phet-search" for="phetSearchInput">
-              <i class="ri-search-line"></i>
-              <input id="phetSearchInput" type="search" placeholder="搜索实验名称或研究主题" />
-            </label>
-          </div>
-
           <div id="phetTopicTabs" class="phet-topic-tabs"></div>
 
           <div class="phet-body">
@@ -175,7 +168,7 @@
               <div id="phetEmptyState" class="phet-empty-state">
                 <div class="phet-empty-icon"><i class="ri-flask-line"></i></div>
                 <h3>选择一个课外实验</h3>
-                <p>右侧将呈现实验界面、原理概述、观测维度与界面术语引导。</p>
+                <p>右侧将呈现实验界面、原理概述、关键观测维度与界面引导。</p>
               </div>
 
               <div id="phetDetailContent" class="phet-detail-content hidden">
@@ -204,7 +197,6 @@
                 <div class="phet-ask-panel">
                   <div class="phet-ask-head">
                     <label for="phetQuestionInput">结合当前实验提问</label>
-                    <span class="phet-context-hint">提问将自动带入实验主题、原理概述与仿真场景。</span>
                   </div>
                   <div class="phet-ask-row">
                     <textarea id="phetQuestionInput" rows="3" data-max-height="136" placeholder="例如：这个实验中最值得优先控制和观察的变量是什么？"></textarea>
@@ -220,15 +212,15 @@
                     </article>
                     <article class="phet-info-card">
                       <h4>关键观测维度</h4>
-                      <ul id="phetObservationList" class="phet-bullet-list"></ul>
+                      <div id="phetObservationList" class="phet-text-list"></div>
                     </article>
                     <article class="phet-info-card">
                       <h4>研究问题建议</h4>
                       <div id="phetQuestionHintList" class="phet-suggestion-list"></div>
                     </article>
                     <article class="phet-info-card">
-                      <h4>界面术语引导</h4>
-                      <ul id="phetInterfaceGuidanceList" class="phet-bullet-list"></ul>
+                      <h4>界面引导</h4>
+                      <div id="phetInterfaceGuidanceList" class="phet-text-list"></div>
                     </article>
                   </div>
                 </div>

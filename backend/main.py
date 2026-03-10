@@ -98,6 +98,15 @@ class ExternalLabContext(BaseModel):
     topic_zh: str = ""
     intro_zh: str = ""
     interface_guidance_zh: list[str] = Field(default_factory=list)
+    layout_zh: str = ""
+    screen_flow_zh: list[str] = Field(default_factory=list)
+    controls_zh: list[str] = Field(default_factory=list)
+    effects_zh: list[str] = Field(default_factory=list)
+    readouts_zh: list[str] = Field(default_factory=list)
+    terms_zh: list[str] = Field(default_factory=list)
+    hidden_tutor_prompt_zh: str = ""
+    ui_profile_version: str = ""
+    needs_manual_review: bool = False
     sim_url: str = ""
     official_page_url: str = ""
     has_official_zh: bool = False
@@ -182,23 +191,44 @@ def build_external_lab_context_prompt(context: dict[str, Any] | None) -> str:
     title = str(context.get("title_zh") or context.get("title_en") or context.get("slug") or "未命名实验").strip()
     topic = str(context.get("topic_zh") or "物理实验").strip()
     intro = str(context.get("intro_zh") or "").strip()
+    layout = str(context.get("layout_zh") or "").strip()
     interface_guidance = [str(item).strip() for item in (context.get("interface_guidance_zh") or []) if str(item).strip()]
+    screen_flow = [str(item).strip() for item in (context.get("screen_flow_zh") or []) if str(item).strip()]
+    controls = [str(item).strip() for item in (context.get("controls_zh") or []) if str(item).strip()]
+    effects = [str(item).strip() for item in (context.get("effects_zh") or []) if str(item).strip()]
+    readouts = [str(item).strip() for item in (context.get("readouts_zh") or []) if str(item).strip()]
+    terms = [str(item).strip() for item in (context.get("terms_zh") or []) if str(item).strip()]
     sim_url = str(context.get("sim_url") or "").strip()
     interface_language = "中文界面" if context.get("has_official_zh") else "英文界面（支持中文讲解）"
 
     lines = [
-        "当前问题附带一个课外仿真实验上下文，请优先结合该实验来回答。",
+        "当前问题附带一个课外仿真实验上下文，请优先结合该实验的页面结构、控件和现象回答。",
         f"- 实验名称：{title}",
         f"- 研究主题：{topic}",
         f"- 界面语言：{interface_language}",
     ]
     if intro:
         lines.append(f"- 实验原理概述：{intro}")
+    if layout:
+        lines.append(f"- 界面结构：{layout}")
+    if screen_flow:
+        lines.append(f"- 页面流转：{'；'.join(screen_flow[:4])}")
+    if controls:
+        lines.append(f"- 关键控件：{'；'.join(controls[:6])}")
+    if readouts:
+        lines.append(f"- 关键读数：{'；'.join(readouts[:4])}")
+    if effects:
+        lines.append(f"- 典型变化：{'；'.join(effects[:4])}")
+    if terms:
+        lines.append(f"- 界面术语：{'；'.join(terms[:5])}")
     if interface_guidance:
-        lines.append(f"- 界面术语引导：{'；'.join(interface_guidance[:6])}")
+        lines.append(f"- 界面引导：{'；'.join(interface_guidance[:6])}")
     if sim_url:
         lines.append(f"- 仿真链接：{sim_url}")
-    lines.append("回答时请结合实验现象、可观察变量、操作步骤与物理规律进行分析。")
+    hidden_prompt = str(context.get("hidden_tutor_prompt_zh") or "").strip()
+    if hidden_prompt:
+        lines.append(hidden_prompt)
+    lines.append("回答时请明确当前应先看哪个区域、先调哪个参数、哪些读数最值得解释；如果证据不足，要指出需要补充的界面状态。")
     return "\n".join(lines)
 
 
@@ -319,6 +349,42 @@ def build_image_messages(message_text: str, image_payload: str, image_mime: str 
             ],
         },
     ]
+    return messages, VISION_MODEL
+
+
+def build_lab_image_messages(
+    session_id: str,
+    message_text: str,
+    image_payload: str,
+    image_mime: str | None,
+    external_lab_context: dict[str, Any] | None = None,
+) -> tuple[list[dict[str, Any]], str]:
+    raw_image, source_mime = decode_base64_payload(image_payload, image_mime, label="image")
+    compressed, mime = compress_image_bytes(raw_image, source_mime)
+    encoded = encode_base64_bytes(compressed)
+    data_url = f"data:{mime};base64,{encoded}"
+
+    history = STORE.list_model_messages(session_id, MAX_HISTORY_TURNS * 2)
+    rag_chunks = STORE.search_chunks(session_id, message_text, TOP_K_CHUNKS) if message_text.strip() else []
+    rag_context = build_rag_context(rag_chunks)
+    lab_context = build_external_lab_context_prompt(external_lab_context)
+
+    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if rag_context:
+        messages.append({"role": "system", "content": rag_context})
+    if lab_context:
+        messages.append({"role": "system", "content": lab_context})
+    messages.extend(history)
+    prompt_text = message_text.strip() or "请结合当前课外仿真界面，优先识别正在显示的场景、控件状态、图像和读数，再进行物理分析。"
+    messages.append(
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt_text},
+                {"type": "image_url", "image_url": {"url": data_url}},
+            ],
+        }
+    )
     return messages, VISION_MODEL
 
 
@@ -611,7 +677,16 @@ async def chat(req: ChatRequest):
                 return
 
             if image_payload:
-                messages, model_used = build_image_messages(message_text, image_payload, req.image_mime)
+                if external_lab_context:
+                    messages, model_used = build_lab_image_messages(
+                        session_id,
+                        message_text,
+                        image_payload,
+                        req.image_mime,
+                        external_lab_context,
+                    )
+                else:
+                    messages, model_used = build_image_messages(message_text, image_payload, req.image_mime)
             else:
                 messages, model_used = build_text_messages(session_id, message_text, external_lab_context)
 

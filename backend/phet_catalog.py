@@ -7,6 +7,7 @@ import re
 import threading
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,40 +17,44 @@ PHET_BASE_URL = "https://phet.colorado.edu"
 PHET_METADATA_URL = PHET_BASE_URL + "/services/metadata/1.3/simulations?format=json&locale={locale}"
 PHYSICS_CATEGORY_ID = "4"
 DEFAULT_CACHE_MAX_AGE_SECONDS = 24 * 60 * 60
-CATALOG_SCHEMA_VERSION = 3
+CATALOG_SCHEMA_VERSION = 4
+UI_PROFILE_VERSION = "2026.03.deep-1"
+FETCH_WORKERS = 8
 
 TOPIC_SPECS = [
     {
         "category_id": "5",
         "topic_key": "motion",
-        "topic_label_zh": "运动",
-        "topic_label_en": "Motion",
+        "topic_label_zh": "运动与力学",
+        "topic_label_en": "Motion & Mechanics",
         "observation_points": [
-            "先确认界面里哪些量是输入变量，哪些量会实时响应变化。",
-            "记录位移、速度、加速度或运动轨迹随参数变化的趋势。",
-            "比较图像、动画和物理量读数之间是否能互相印证。",
+            "先辨认输入变量、运动状态量与结果显示区之间的对应关系，再逐步做单变量控制。",
+            "连续改变位置、速度、受力、角度或质量等参数，比较图像与现象是否同步变化。",
+            "重点记录阈值点、平衡点、极值点以及周期变化前后的差异。",
         ],
         "suggested_questions": [
-            "这个仿真里最关键的控制变量和观测量分别是什么？",
-            "如果逐步改变一个参数，运动状态会怎样变化？",
-            "怎样把仿真现象和课堂中的运动公式联系起来？",
+            "这个实验里最值得先固定和先改变的变量分别是什么？",
+            "哪些参数变化最容易导致运动状态或受力关系发生明显转折？",
+            "如何把当前现象和相应的力学模型、图像或方程联系起来？",
         ],
+        "research_focus_zh": "适合做参数控制、轨迹分析与动力学解释",
     },
     {
         "category_id": "6",
         "topic_key": "sound-and-waves",
-        "topic_label_zh": "声波与振动",
-        "topic_label_en": "Sound & Waves",
+        "topic_label_zh": "波动与振动",
+        "topic_label_en": "Waves & Oscillation",
         "observation_points": [
-            "观察频率、振幅、相位或介质变化时波形如何调整。",
-            "比较时间域图像和空间分布图像是否一致。",
-            "关注共振、干涉、驻波等典型现象出现的条件。",
+            "优先辨认频率、振幅、相位、波长或张力等控制量分别对应哪一类图像变化。",
+            "同时观察时间域波形、空间分布和统计读数，避免只看动画不看量化结果。",
+            "重点比较共振、干涉、驻波与传播速度变化出现的条件。",
         ],
         "suggested_questions": [
-            "当前仿真最适合验证哪条波动规律？",
-            "哪些参数变化会直接影响振幅、频率或波长？",
-            "如何利用这个仿真解释共振或干涉现象？",
+            "当前界面里哪几个参数最直接影响波形与能量分布？",
+            "什么条件下会出现最明显的干涉、驻波或共振现象？",
+            "怎样把当前仿真结果与波动方程或实验课中的测量量对应起来？",
         ],
+        "research_focus_zh": "适合做波形分析、相位比较与振动过程解释",
     },
     {
         "category_id": "7",
@@ -57,31 +62,33 @@ TOPIC_SPECS = [
         "topic_label_zh": "功、能量与功率",
         "topic_label_en": "Work, Energy & Power",
         "observation_points": [
-            "跟踪动能、势能、内能等能量项的转化过程。",
-            "比较守恒量和耗散量在不同条件下的变化。",
-            "注意图表和能量条是否能解释实验现象。",
+            "优先跟踪能量条、功率读数和状态变化图，确认能量流向与守恒关系。",
+            "改变外力、摩擦、输入功率或热交换条件时，比较各类能量项的增减。",
+            "重点检查图像变化是否能解释做功、转化效率与能量损耗。",
         ],
         "suggested_questions": [
-            "这个仿真最适合观察哪几种能量之间的转化？",
-            "哪些条件下可以近似看作能量守恒？",
-            "如何从仿真结果判断系统功率或做功过程？",
+            "当前实验最适合观察哪几类能量项之间的转化？",
+            "哪些操作会改变功率或能量损耗，而哪些操作只改变分配方式？",
+            "如何用守恒关系解释当前界面中的图像、读数和动态现象？",
         ],
+        "research_focus_zh": "适合做能量转化、守恒与效率分析",
     },
     {
         "category_id": "8",
         "topic_key": "heat-and-thermodynamics",
-        "topic_label_zh": "热学与热力学",
-        "topic_label_en": "Heat & Thermodynamics",
+        "topic_label_zh": "热学与统计现象",
+        "topic_label_en": "Heat & Statistical Phenomena",
         "observation_points": [
-            "对比温度、压强、体积、粒子运动状态之间的联系。",
-            "关注热传递方向和系统平衡前后的变化。",
-            "比较不同模型下宏观量和微观解释是否一致。",
+            "先确定温度、压力、体积、粒子状态或能量势阱等关键量各自对应的显示区域。",
+            "逐步改变粒子数、温度、碰撞、势能或相互作用参数，比较系统状态转移路径。",
+            "重点分析宏观现象与微观粒子运动或统计分布是否一致。",
         ],
         "suggested_questions": [
-            "这个仿真适合验证哪条热学或热力学规律？",
-            "如何从微观动画解释温度、压强或内能变化？",
-            "哪些现象能帮助区分热平衡前后系统状态？",
+            "当前仿真中哪些变量最能体现统计规律或热平衡过程？",
+            "哪类控制会改变粒子分布、势能曲线或相变边界？",
+            "怎样把界面上的图像和热学、统计物理中的概念联系起来？",
         ],
+        "research_focus_zh": "适合做状态变化、统计分布与相互作用分析",
     },
     {
         "category_id": "9",
@@ -89,171 +96,380 @@ TOPIC_SPECS = [
         "topic_label_zh": "量子现象",
         "topic_label_en": "Quantum Phenomena",
         "observation_points": [
-            "关注测量前后的状态变化，以及概率分布如何更新。",
-            "比较经典模型和量子模型在同一问题上的差异。",
-            "留意界面中的统计结果、波函数或态叠加表现。",
+            "优先辨认状态准备区、测量区、统计结果区之间的关系，避免把准备态和测量结果混为一谈。",
+            "比较经典模型与量子模型在概率分布、测量后状态与统计波动上的差异。",
+            "重点关注单次测量结果与多次统计结果之间的联系。",
         ],
         "suggested_questions": [
-            "这个仿真里哪些现象体现了量子系统和经典系统的区别？",
-            "测量操作会怎样改变系统状态或概率分布？",
-            "如何用更通俗的语言解释这里的量子叠加或坍缩？",
+            "当前界面中状态准备、测量执行和统计展示分别在什么位置？",
+            "哪些现象体现了叠加、测量更新或经典/量子差异？",
+            "怎样把当前结果用更清晰的物理语言解释给初学者？",
         ],
+        "research_focus_zh": "适合做状态准备、测量解释与概率分布分析",
     },
     {
         "category_id": "10",
         "topic_key": "light-and-radiation",
-        "topic_label_zh": "光与辐射",
+        "topic_label_zh": "光学与辐射",
         "topic_label_en": "Light & Radiation",
         "observation_points": [
-            "比较光路、频谱、波长或强度变化带来的现象差异。",
-            "观察图像变化是否能对应到折射、衍射、发射等机制。",
-            "留意不同介质或参数设置对结果的影响。",
+            "先辨认光源、介质、透镜/镜面、像屏与读数区的位置关系，再观察光路变化。",
+            "改变波长、焦距、介质、位置或几何参数时，比较像的位置、大小、亮度和方向变化。",
+            "重点验证折射、反射、成像或辐射谱线的关键规律。",
         ],
         "suggested_questions": [
-            "这个仿真最适合解释哪一种光学或辐射现象？",
-            "哪些参数会直接影响波长、频率、强度或成像结果？",
-            "如何把这里的现象和实验室中的真实观测对应起来？",
+            "这个实验里哪几个参数最直接决定光路或成像结果？",
+            "哪些界面读数最适合验证折射、反射、成像或谱线规律？",
+            "怎样把当前现象和几何光学或辐射模型联系起来？",
         ],
+        "research_focus_zh": "适合做光路分析、成像比较与谱线解释",
     },
     {
         "category_id": "11",
         "topic_key": "electricity-magnets-and-circuits",
         "topic_label_zh": "电磁与电路",
-        "topic_label_en": "Electricity, Magnets & Circuits",
+        "topic_label_en": "Electricity, Magnetism & Circuits",
         "observation_points": [
-            "先辨认电源、元件、导线和测量量之间的关系。",
-            "跟踪电流、电压、磁场或电荷分布如何随操作变化。",
-            "比较稳态与瞬态、串并联或不同边界条件下的结果。",
+            "优先辨认器件区、搭建区、仪表区和场量显示区之间的关系。",
+            "改变元件参数、连接方式、磁场或电荷分布后，比较电流、电压、场线与读数变化。",
+            "重点分析稳态与瞬态、串并联结构以及场量分布的区别。",
         ],
         "suggested_questions": [
-            "这个仿真里哪些变量决定了电流、电压或磁场变化？",
-            "如何用电路或电磁学基本规律解释界面中的现象？",
-            "如果改变元件参数，系统响应会出现什么趋势？",
+            "当前实验中最关键的元件参数和观测量分别是什么？",
+            "哪些操作会显著改变电流、电压、场线或能量分布？",
+            "怎样利用当前界面验证电路规律或电磁学关系？",
         ],
+        "research_focus_zh": "适合做电路搭建、仪表读数与场量分析",
     },
 ]
 
-TOPIC_SPECS_BY_CATEGORY = {item["category_id"]: item for item in TOPIC_SPECS}
-
-TITLE_REPLACEMENTS = [
-    ("Kepler's Laws", "开普勒定律"),
-    ("Coulomb's Law", "库仑定律"),
-    ("Quantum Coin Toss", "量子抛硬币"),
-    ("Quantum Measurement", "量子测量"),
-    ("Blackbody Spectrum", "黑体辐射光谱"),
-    ("Atomic Interactions", "原子相互作用"),
-    ("Balancing Act", "平衡探究实验"),
-    ("Balloons and Static Electricity", "气球与静电"),
-    ("Bending Light", "光的折射"),
-    ("Build a Nucleus", "构建原子核"),
-    ("Build an Atom", "构建原子模型"),
-    ("Buoyancy: Basics", "浮力基础"),
-    ("Buoyancy", "浮力"),
-    ("Calculus Grapher", "微积分绘图器"),
-    ("Capacitor Lab: Basics", "电容器实验基础"),
-    ("Charges and Fields", "电荷与电场"),
-    ("Circuit Construction Kit: AC - Virtual Lab", "交流电路搭建虚拟实验室"),
-    ("Circuit Construction Kit: AC", "交流电路搭建实验"),
-    ("Circuit Construction Kit: DC - Virtual Lab", "直流电路搭建虚拟实验室"),
-    ("Circuit Construction Kit: DC", "直流电路搭建实验"),
-    ("Collision Lab", "碰撞实验室"),
-    ("Color Vision", "色觉与光的混合"),
-    ("Curve Fitting", "曲线拟合"),
-    ("Energy Forms and Changes", "能量形式与转化"),
-    ("Energy Skate Park: Basics", "能量滑板公园基础"),
-    ("Energy Skate Park", "能量滑板公园"),
-    ("Faraday's Law", "法拉第电磁感应定律"),
-    ("Forces and Motion: Basics", "力与运动基础"),
-    ("Gas Properties", "气体性质"),
-    ("Gravity and Orbits", "引力与轨道"),
-    ("Gravity Force Lab: Basics", "引力实验基础"),
-    ("Gravity Force Lab", "引力实验室"),
-    ("Projectile Data Lab", "抛体数据实验"),
-    ("Hooke's Law", "胡克定律"),
-    ("Isotopes and Atomic Mass", "同位素与原子质量"),
-    ("Masses and Springs: Basics", "质量与弹簧基础"),
-    ("Masses and Springs", "质量与弹簧"),
-    ("Fourier: Making Waves", "傅里叶波形合成"),
-    ("Faraday's Electromagnetic Lab", "法拉第电磁实验"),
-    ("Model of the Hydrogen Atom", "氢原子模型"),
-    ("Models of the Hydrogen Atom", "氢原子模型"),
-    ("Geometric Optics: Basics", "几何光学基础"),
-    ("Ohm's Law", "欧姆定律"),
-    ("Pendulum Lab", "单摆实验"),
-    ("Projectile Motion", "抛体运动"),
-    ("Resonance", "共振"),
-    ("Wave on a String", "弦上的波"),
-]
-
-WORD_REPLACEMENTS = {
-    "atomic": "原子",
-    "interactions": "相互作用",
-    "balancing": "平衡",
-    "act": "探究",
-    "balloons": "气球",
-    "static": "静电",
-    "electricity": "电学",
-    "bending": "折射",
-    "light": "光",
-    "blackbody": "黑体",
-    "spectrum": "光谱",
-    "build": "构建",
-    "nucleus": "原子核",
-    "atom": "原子",
+TITLE_TRANSLATIONS = {
+    "gravity-force-lab": "引力实验室",
+    "forces-and-motion-basics": "力与运动基础",
+    "pendulum-lab": "单摆实验",
+    "build-an-atom": "构建原子",
+    "under-pressure": "压强作用",
+    "my-solar-system": "我的太阳系",
+    "density": "密度",
+    "balancing-act": "平衡探究",
+    "keplers-laws": "开普勒定律",
+    "gravity-force-lab-basics": "引力实验基础",
+    "projectile-data-lab": "抛体数据实验",
+    "projectile-motion": "抛体运动",
+    "friction": "摩擦",
+    "curve-fitting": "曲线拟合",
+    "build-a-nucleus": "构建原子核",
     "buoyancy": "浮力",
-    "calculus": "微积分",
-    "grapher": "绘图器",
-    "capacitor": "电容器",
+    "buoyancy-basics": "浮力基础",
+    "vector-addition": "矢量相加",
+    "collision-lab": "碰撞实验",
+    "calculus-grapher": "微积分绘图器",
+    "hookes-law": "胡克定律",
+    "energy-skate-park": "能量滑板公园",
+    "energy-skate-park-basics": "能量滑板公园基础",
+    "masses-and-springs-basics": "质量与弹簧基础",
+    "masses-and-springs": "质量与弹簧",
+    "gravity-and-orbits": "引力与轨道",
+    "quantum-coin-toss": "量子抛硬币",
+    "fourier-making-waves": "傅里叶合成波形",
+    "wave-interference": "波的干涉",
+    "waves-intro": "波动入门",
+    "wave-on-a-string": "弦上的波",
+    "generator": "发电机",
+    "gas-properties": "气体性质",
+    "faradays-electromagnetic-lab": "法拉第电磁实验",
+    "energy-forms-and-changes": "能量形式与转化",
+    "plinko-probability": "概率板实验",
+    "atomic-interactions": "原子相互作用",
+    "diffusion": "扩散",
+    "gases-intro": "气体入门",
+    "states-of-matter": "物态变化",
+    "states-of-matter-basics": "物态变化基础",
+    "rutherford-scattering": "卢瑟福散射",
+    "models-of-the-hydrogen-atom": "氢原子模型",
+    "quantum-measurement": "量子测量",
+    "blackbody-spectrum": "黑体光谱",
+    "bending-light": "光的折射",
+    "color-vision": "颜色视觉",
+    "geometric-optics": "几何光学",
+    "geometric-optics-basics": "几何光学基础",
+    "molecules-and-light": "分子与光",
+    "circuit-construction-kit-ac": "交流电路搭建",
+    "circuit-construction-kit-ac-virtual-lab": "交流电路搭建虚拟实验室",
+    "coulombs-law": "库仑定律",
+    "balloons-and-static-electricity": "气球与静电",
+    "faradays-law": "法拉第定律",
+    "capacitor-lab-basics": "电容实验基础",
+    "resistance-in-a-wire": "导线中的电阻",
+    "charges-and-fields": "电荷与电场",
+    "circuit-construction-kit-dc": "直流电路搭建",
+    "circuit-construction-kit-dc-virtual-lab": "直流电路搭建虚拟实验室",
+    "magnet-and-compass": "磁铁与指南针",
+    "magnets-and-electromagnets": "磁铁与电磁铁",
+    "ohms-law": "欧姆定律",
+    "john-travoltage": "静电放电实验",
+}
+
+WORD_TRANSLATIONS = {
+    "basics": "基础",
+    "basic": "基础",
     "lab": "实验",
-    "charges": "电荷",
-    "fields": "电场",
+    "virtual": "虚拟",
+    "motion": "运动",
+    "forces": "力",
+    "force": "力",
+    "energy": "能量",
+    "light": "光",
+    "waves": "波",
+    "wave": "波",
+    "sound": "声",
+    "gas": "气体",
+    "states": "状态",
+    "matter": "物态",
+    "quantum": "量子",
+    "measurement": "测量",
+    "atom": "原子",
+    "hydrogen": "氢",
     "circuit": "电路",
     "construction": "搭建",
     "kit": "套件",
-    "virtual": "虚拟",
-    "collision": "碰撞",
-    "color": "颜色",
-    "vision": "视觉",
-    "curve": "曲线",
-    "fitting": "拟合",
-    "energy": "能量",
-    "forms": "形式",
-    "changes": "变化",
-    "faraday": "法拉第",
-    "electromagnetic": "电磁",
-    "kepler's": "开普勒",
-    "keplers": "开普勒",
-    "fourier": "傅里叶",
-    "data": "数据",
-    "geometric": "几何",
+    "current": "电流",
+    "voltage": "电压",
     "optics": "光学",
-    "models": "模型",
-    "making": "生成",
-    "forces": "力",
-    "motion": "运动",
-    "gas": "气体",
-    "properties": "性质",
-    "gravity": "重力",
-    "orbits": "轨道",
-    "hooke": "胡克",
-    "law": "定律",
-    "isotopes": "同位素",
-    "mass": "质量",
-    "masses": "质量",
-    "springs": "弹簧",
-    "model": "模型",
-    "hydrogen": "氢",
-    "ohm": "欧姆",
-    "pendulum": "摆",
-    "projectile": "抛体",
-    "quantum": "量子",
-    "coin": "硬币",
-    "toss": "抛掷",
-    "resonance": "共振",
-    "wave": "波",
-    "string": "弦",
-    "basics": "基础",
+    "geometric": "几何",
 }
+
+CONTROL_LIBRARY = [
+    ("reset all", "重置", "Reset All", "用于回到初始状态，便于重新组织变量控制顺序。"),
+    ("reset", "重置", "Reset", "用于撤回当前设置，重新开始一轮参数比较。"),
+    ("play", "开始播放", "Play", "用于驱动时间演化或连续测量过程。"),
+    ("pause", "暂停", "Pause", "用于冻结当前状态，便于逐项读取参数与图像。"),
+    ("measure", "测量", "Measure", "用于执行一次观测、采样或读数获取。"),
+    ("graph", "图像区", "Graph", "用于观察变量随时间或参数变化的趋势。"),
+    ("histogram", "统计直方图", "Histogram", "用于比较多次试验后的结果分布。"),
+    ("screen", "像屏或显示区", "Screen", "用于观察成像位置、亮度或实验结果投影。"),
+    ("lens", "透镜", "Lens", "用于改变会聚或发散条件，观察成像与光路变化。"),
+    ("mirror", "镜面", "Mirror", "用于改变反射路径并比较像的位置与方向。"),
+    ("object", "物体", "Object", "用于设置实验对象的位置、大小或状态。"),
+    ("image", "像", "Image", "用于判断像的位置、倒正、大小与清晰度。"),
+    ("battery", "电池", "Battery", "用于提供电源并影响电路中的电势差。"),
+    ("bulb", "灯泡", "Bulb", "用于观察电流变化带来的发光与功率差异。"),
+    ("resistor", "电阻器", "Resistor", "用于改变回路电阻并比较电流、电压变化。"),
+    ("switch", "开关", "Switch", "用于控制回路通断或切换实验状态。"),
+    ("ammeter", "电流表", "Ammeter", "用于读取支路或主回路电流。"),
+    ("voltmeter", "电压表", "Voltmeter", "用于比较元件两端电势差。"),
+    ("capacitor", "电容器", "Capacitor", "用于观察储能、充放电或电压变化。"),
+    ("charge", "电荷", "Charge", "用于改变电荷分布并比较场量变化。"),
+    ("field", "场量显示", "Field", "用于观察电场、磁场或势能分布。"),
+    ("magnet", "磁铁", "Magnet", "用于改变磁场方向和强度。"),
+    ("compass", "指南针", "Compass", "用于读取局部磁场方向。"),
+    ("spring", "弹簧", "Spring", "用于观察弹性恢复力与振动过程。"),
+    ("mass", "质量块", "Mass", "用于改变惯性或重力效应。"),
+    ("friction", "摩擦", "Friction", "用于比较耗散引起的运动与能量变化。"),
+    ("position", "位置", "Position", "用于控制或读取物体所在位置。"),
+    ("velocity", "速度", "Velocity", "用于比较运动快慢和方向变化。"),
+    ("acceleration", "加速度", "Acceleration", "用于识别受力变化对应的运动响应。"),
+    ("wavelength", "波长", "Wavelength", "用于改变颜色、干涉或传播特征。"),
+    ("frequency", "频率", "Frequency", "用于改变振动节奏和周期现象。"),
+    ("amplitude", "振幅", "Amplitude", "用于比较振动强弱和能量变化。"),
+    ("probability", "概率显示", "Probability", "用于比较状态分布和测量结果。"),
+    ("state", "状态选择", "State", "用于准备实验初态并比较不同状态下的结果。"),
+]
+
+READOUT_LIBRARY = [
+    ("graph", "图像区用于展示变量变化趋势，适合读取斜率、周期或峰值位置。"),
+    ("histogram", "统计直方图用于比较多次试验后的频数分布与概率差异。"),
+    ("number display", "数值读数区用于精确记录关键物理量。"),
+    ("display", "显示区用于同步呈现实验动画、图像与数值结果。"),
+    ("current", "电流读数可用于比较不同支路、不同元件条件下的导电情况。"),
+    ("voltage", "电压读数可用于判断电势差如何随器件和连接方式变化。"),
+    ("energy", "能量显示可用于跟踪能量转化、守恒与损耗。"),
+    ("image", "成像区可用于判断像的位置、大小、正倒和清晰度。"),
+    ("screen", "像屏或结果显示区可用于读取投影位置、亮度或图样。"),
+]
+
+SIM_UI_OVERRIDES: dict[str, dict[str, Any]] = {
+    "quantum-coin-toss": {
+        "layout_zh": "该实验通常先出现主场景选择，再进入量子硬币或经典硬币的准备与测量界面。核心区域可分为状态准备区、测量执行区和统计结果区。",
+        "screen_flow_zh": [
+            "进入实验后，先在首页辨认可进入的硬币情境或统计场景，再进入具体实验界面。",
+            "进入准备区后，先确定当前选择的是经典偏置硬币还是量子硬币，并观察初态是如何被设定的。",
+            "完成状态准备后，再执行测量或重复投掷，重点比较单次结果与多次统计分布之间的联系。",
+        ],
+        "controls_zh": [
+            "状态选择用于准备不同的初态，并决定后续测量分布的起点。",
+            "测量按钮（Measure）用于执行一次观测，适合比较测量前后的状态更新。",
+            "统计图或结果区（Histogram / Graph）用于比较经典偏置与量子叠加在多次测量中的差异。",
+        ],
+        "effects_zh": [
+            "当初态改变时，单次测量结果虽然仍具有随机性，但长期统计分布会发生系统变化。",
+            "量子硬币与经典偏置硬币在统计上都能出现偏向结果，但状态准备和测量解释不同。",
+            "重复测量次数增加后，分布特征会更稳定，更适合讨论概率解释。",
+        ],
+        "readouts_zh": [
+            "重点读取统计结果区的频数分布、概率变化和单次测量输出。",
+        ],
+        "terms_zh": [
+            "测量（Measure）用于触发一次观测并查看结果更新。",
+            "统计图（Histogram）用于比较多次试验后的频数分布。",
+            "状态（State）用于表示当前准备的量子或经典初态。",
+        ],
+        "needs_manual_review": False,
+    },
+    "quantum-measurement": {
+        "layout_zh": "该实验围绕状态准备、测量基选择和统计结果展示展开，界面通常包含准备区、测量区和结果区。",
+        "screen_flow_zh": [
+            "先在状态准备区确认系统的初始态，再进入测量设置区选择测量方向或测量基。",
+            "完成设置后执行测量，比较单次结果、重复测量结果与状态更新之间的关系。",
+            "切换不同测量设置时，重点观察概率分布和测量后状态如何改变。",
+        ],
+        "controls_zh": [
+            "状态准备控件用于设置初始态，并决定后续测量的比较基础。",
+            "测量设置用于选择观测方向或观测基，适合讨论不相容观测的差异。",
+            "测量按钮（Measure）用于执行观测并生成统计结果。",
+        ],
+        "needs_manual_review": False,
+    },
+    "models-of-the-hydrogen-atom": {
+        "layout_zh": "该实验通常包含模型切换区、辐射或谱线显示区以及电子状态演示区，适合比较不同原子模型的解释能力。",
+        "screen_flow_zh": [
+            "先在模型切换区依次选择不同氢原子模型，比较每个模型对实验现象的解释方式。",
+            "进入每个模型后，重点观察电子状态、能级变化和辐射结果如何被表示。",
+            "再对照谱线或观测结果区，判断当前模型能否解释实验现象以及解释到什么程度。",
+        ],
+        "controls_zh": [
+            "模型选择用于在经典模型和量子模型之间切换，适合比较解释差异。",
+            "辐射或能级相关控件用于观察跃迁、吸收和发射过程。",
+            "谱线或显示区用于核对模型预测和实验现象是否一致。",
+        ],
+        "needs_manual_review": False,
+    },
+    "circuit-construction-kit-dc-virtual-lab": {
+        "layout_zh": "该实验通常由器件工具箱、中央搭建区和右侧或下方仪表读数区组成，并可在实物视图与电路图视图之间切换。",
+        "screen_flow_zh": [
+            "进入实验后先在器件区选择电池、灯泡、电阻、导线和开关，再拖入中央搭建区完成回路连接。",
+            "完成基本回路后，切换到仪表操作阶段，把电流表和电压表放到需要测量的位置，比较不同接法的读数差异。",
+            "当需要从结构上分析回路时，可切换到电路图或示意图视图，再比较它与实物视图的一一对应关系。",
+        ],
+        "controls_zh": [
+            "器件工具箱用于拖入电池、电阻、灯泡、开关等元件，直接决定回路结构。",
+            "电流表（Ammeter）用于比较各支路或主回路的电流大小。",
+            "电压表（Voltmeter）用于读取元件两端电势差，适合验证串并联规律。",
+            "视图切换用于在实物搭建与电路图之间来回对照，帮助建立结构理解。",
+        ],
+        "effects_zh": [
+            "当串并联结构改变时，灯泡亮度、电流分配和电压读数会同步变化。",
+            "改变电阻、灯泡特性或电池数量后，回路总电流和局部读数会出现明显差异。",
+            "错误接入仪表会改变回路结构，因此测量前应先辨认仪表应串联还是并联。",
+        ],
+        "readouts_zh": [
+            "重点读取灯泡亮度、电流表、电压表以及不同视图中的连接关系。",
+        ],
+        "terms_zh": [
+            "电流表（Ammeter）用于测量串联位置的电流。",
+            "电压表（Voltmeter）用于比较元件两端的电压。",
+            "电路图（Schematic）用于从结构上分析回路连接关系。",
+        ],
+        "needs_manual_review": False,
+    },
+    "circuit-construction-kit-dc": {
+        "layout_zh": "该实验以器件拖拽搭建为主，界面通常包括器件区、回路搭建区和仪表读数区。",
+        "screen_flow_zh": [
+            "先在器件区选择所需元件并完成回路闭合，再观察灯泡、仪表和导线中的变化。",
+            "随后加入电流表和电压表，对比不同连接方式下的读数差异。",
+            "最后切换不同视图，比较实物连接和电路图表达之间的对应关系。",
+        ],
+        "needs_manual_review": False,
+    },
+    "circuit-construction-kit-ac-virtual-lab": {
+        "layout_zh": "该实验在器件搭建基础上加入交流电源与周期性响应观察，核心由器件区、搭建区和读数区组成。",
+        "screen_flow_zh": [
+            "先完成基本回路搭建，再重点观察交流源驱动下各元件响应的周期变化。",
+            "随后使用测量工具比较不同频率、不同元件组合下的电流和电压表现。",
+            "必要时切换视图，比较示意图与实物响应的一致性。",
+        ],
+        "needs_manual_review": False,
+    },
+    "circuit-construction-kit-ac": {
+        "screen_flow_zh": [
+            "先搭建交流回路，再观察不同元件组合下的周期响应。",
+            "加入测量工具后重点比较相对变化、峰值变化和电路结构变化的影响。",
+        ],
+        "needs_manual_review": False,
+    },
+    "geometric-optics-basics": {
+        "layout_zh": "该实验通常围绕光源或物体、透镜/镜面、光线和像屏展开，界面核心是中央光路区与周边参数控制区。",
+        "screen_flow_zh": [
+            "进入实验后先辨认当前是透镜场景还是镜面场景，再确认物体、光学元件和像屏的位置关系。",
+            "随后调节焦距、物距、屏幕位置或口径，比较主光线和像的位置如何变化。",
+            "当像变清晰、倒正改变或像消失时，应及时回看光线路径和几何关系，判断原因来自哪一个参数变化。",
+        ],
+        "controls_zh": [
+            "物体位置用于决定入射光线的初始条件，是分析成像位置的起点。",
+            "焦距或光学元件参数用于改变会聚、发散或反射特征。",
+            "像屏（Screen）用于验证像是否真实成于某一位置，并比较清晰度和亮度变化。",
+        ],
+        "effects_zh": [
+            "物距和焦距变化会同步影响像距、放大率、倒正关系和清晰度。",
+            "当物体跨过关键位置时，像的位置与性质会出现明显转折。",
+            "若屏幕没有放在合适位置，即使成像规律成立，也可能看不到清晰实像。",
+        ],
+        "needs_manual_review": False,
+    },
+    "geometric-optics": {
+        "screen_flow_zh": [
+            "先选择当前使用的光学元件类型，再辨认物体、透镜或镜面以及像屏的位置关系。",
+            "随后逐步调节物距、焦距、口径或屏幕位置，比较光路和成像变化。",
+            "最后结合读数和光线图判断当前像的性质与形成原因。",
+        ],
+        "needs_manual_review": False,
+    },
+    "wave-interference": {
+        "layout_zh": "该实验通常包含场景切换、波源控制区和波形显示区，适合比较不同介质和波源条件下的干涉现象。",
+        "screen_flow_zh": [
+            "先选择需要观察的场景或介质，再辨认波源位置、相位设置和显示方式。",
+            "随后调节频率、振幅、相位差或波源数量，观察干涉条纹或波形叠加如何变化。",
+            "当出现节点、腹部或明显干涉结构时，应同步读取图像区和参数区，判断形成条件。",
+        ],
+        "needs_manual_review": False,
+    },
+    "wave-on-a-string": {
+        "layout_zh": "该实验围绕绳上的波动传播展开，界面通常包含驱动区、绳形显示区和参数控制区。",
+        "screen_flow_zh": [
+            "先辨认当前是脉冲、连续驱动还是手动驱动模式，再观察绳形显示区的响应。",
+            "随后调节频率、振幅、张力和阻尼，比较传播速度、反射和驻波结构变化。",
+            "当需要精确比较节点、腹部或相位时，应先暂停，再读取绳形与图像。",
+        ],
+        "needs_manual_review": False,
+    },
+    "energy-skate-park": {
+        "layout_zh": "该实验一般由轨道区、滑块运动区和能量条/图像区组成，适合比较动能、势能和热能的转化。",
+        "screen_flow_zh": [
+            "先在轨道或场景区确定滑块的起始位置，再辨认能量条和图像显示区。",
+            "随后调节轨道形状、摩擦或起始高度，比较速度变化与能量分配变化。",
+            "当需要解释某一时刻的运动状态时，应同时读取位置、速度和能量条，避免只看动画。",
+        ],
+        "needs_manual_review": False,
+    },
+    "energy-skate-park-basics": {
+        "screen_flow_zh": [
+            "先确定滑块初始位置和轨道结构，再进入能量比较阶段。",
+            "随后改变高度、摩擦或轨道形状，比较动能、势能和热能的变化。",
+        ],
+        "needs_manual_review": False,
+    },
+    "atomic-interactions": {
+        "layout_zh": "该实验通常围绕粒子间距、势能曲线和相互作用强弱展开，界面包含粒子显示区、距离控制区和势能图像区。",
+        "screen_flow_zh": [
+            "先辨认粒子显示区和势能曲线区，再观察距离调节与势能变化的对应关系。",
+            "随后改变粒子间距或相互作用相关参数，比较吸引区、排斥区和稳定平衡点的位置。",
+            "当系统接近平衡点或越过势阱边界时，应重点读取势能曲线和粒子运动方向。",
+        ],
+        "needs_manual_review": False,
+    },
+}
+
+TOPIC_SPECS_BY_CATEGORY = {item["category_id"]: item for item in TOPIC_SPECS}
 
 
 def utc_now_iso() -> str:
@@ -263,8 +479,7 @@ def utc_now_iso() -> str:
 def normalize_text(raw: Any) -> str:
     if raw is None:
         return ""
-    text = str(raw)
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = str(raw).replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"<\s*br\s*/?\s*>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(r"<[^>]+>", " ", text)
     text = html.unescape(text)
@@ -295,42 +510,20 @@ def choose_embed_url(en_localized: dict[str, Any], zh_localized: dict[str, Any] 
     return absolute_url(str(en_localized.get("runUrl") or ""))
 
 
-def translate_title_fallback(title_en: str) -> str:
-    title = title_en.strip()
-    if not title:
-        return "课外仿真实验"
-    for source, target in TITLE_REPLACEMENTS:
-        if title == source:
-            return target
-
-    normalized = title
-    for source, target in TITLE_REPLACEMENTS:
-        normalized = normalized.replace(source, target)
-
-    tokens = re.split(r"([ :&()\-])", normalized)
-    translated_tokens: list[str] = []
-    for token in tokens:
-        token_lower = token.lower()
-        translated_tokens.append(WORD_REPLACEMENTS.get(token_lower, token))
-    translated = "".join(translated_tokens).strip()
-    translated = re.sub(r"\s+", " ", translated)
-    translated = translated.replace(" :", "：").replace(": ", "：")
-    translated = re.sub(r"\s*-\s*", " ", translated)
-    translated = re.sub(r"\s+", " ", translated).strip(" ：-")
-    if re.search(r"[A-Za-z]{3,}", translated):
-        cleaned = re.sub(r"[A-Za-z]{2,}", "", translated)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip(" ：-()")
-        if cleaned:
-            return cleaned
-        return "课外仿真实验"
-    return translated or "课外仿真实验"
+def choose_analysis_url(en_localized: dict[str, Any], all_locales_url: str | None) -> str:
+    if isinstance(all_locales_url, str) and all_locales_url.startswith("/sims/html/"):
+        return absolute_url(all_locales_url)
+    run_url = str(en_localized.get("runUrl") or "")
+    if run_url.endswith("_en.html"):
+        return absolute_url(run_url.replace("_en.html", "_all.html"))
+    return absolute_url(run_url)
 
 
 def contains_english_words(text: str) -> bool:
     return bool(re.search(r"[A-Za-z]{2,}", text or ""))
 
 
-def needs_generated_chinese(text: str, *, min_chinese_chars: int = 12) -> bool:
+def needs_generated_chinese(text: str, *, min_chinese_chars: int = 10) -> bool:
     if not text:
         return True
     english_words = re.findall(r"[A-Za-z]{3,}", text)
@@ -338,72 +531,35 @@ def needs_generated_chinese(text: str, *, min_chinese_chars: int = 12) -> bool:
     return len(english_words) >= 3 and len(chinese_chars) < min_chinese_chars
 
 
+def translate_title_fallback(title_en: str, slug: str) -> str:
+    if slug in TITLE_TRANSLATIONS:
+        return TITLE_TRANSLATIONS[slug]
+    clean = title_en.strip()
+    if not clean:
+        return "课外仿真实验"
+    translated_tokens: list[str] = []
+    for token in re.split(r"([ :&()\-])", clean):
+        token_lower = token.lower()
+        translated_tokens.append(WORD_TRANSLATIONS.get(token_lower, token))
+    translated = "".join(translated_tokens)
+    translated = re.sub(r"\s+", " ", translated).strip(" -:()")
+    translated = re.sub(r"[A-Za-z]{3,}", "", translated).strip(" -:()")
+    return translated or "课外仿真实验"
+
+
 def build_generated_intro(title_zh: str, topic_label_zh: str) -> str:
     return (
-        f"“{title_zh}”属于{topic_label_zh}主题，可用于分析关键物理量之间的定性与定量关系。"
-        "建议先辨认界面中的可控变量、观测量与图像反馈，再逐步改变参数，比较现象变化、数值读数与理论规律是否一致。"
-        "进一步讨论时，可围绕实验对象、变量控制、结果趋势、规律解释与误差来源展开。"
-    ).strip()
+        f"{title_zh}属于{topic_label_zh}方向的可交互仿真实验，适合通过变量控制与现象对照来建立物理图景。"
+        "建议先辨认界面中的控制区、图像区和读数区，再做单变量调节，比较参数变化前后的趋势、临界点和稳定状态。"
+        "在解释现象时，应把界面读数、图像反馈和物理规律放在同一条分析链条中。"
+    )
 
 
 def build_generated_goals(topic_label_zh: str) -> str:
     return (
-        f"通过该{topic_label_zh}实验，理解主要物理量之间的关联，"
-        "能够说明关键参数变化引起的现象差异，并将仿真结果与课堂中的公式、图像和实验方法对应起来。"
+        f"通过该{topic_label_zh}实验，识别关键控制量和观测量之间的关系，"
+        "能够依据界面现象解释参数变化的物理意义，并将仿真结果与课堂模型、图像和公式对应起来。"
     )
-
-
-def build_research_focus(topic_key: str) -> str:
-    mapping = {
-        "motion": "适合轨迹分析与变量控制",
-        "sound-and-waves": "适合波形分析与相位比较",
-        "work-energy-and-power": "适合能量转化与守恒辨析",
-        "heat-and-thermodynamics": "适合状态变化与热过程分析",
-        "quantum-phenomena": "适合概率解释与测量讨论",
-        "light-and-radiation": "适合光路分析与成像讨论",
-        "electricity-magnets-and-circuits": "适合电路分析与场量比较",
-    }
-    return mapping.get(topic_key, "适合参数分析与现象观察")
-
-
-def build_interface_guidance(topic_key: str) -> list[str]:
-    common = [
-        "参数调节区（Controls / Sliders）用于连续改变关键变量，并比较系统响应是否随之发生规律性变化。",
-        "图像或读数区（Display / Graph / Readout）用于核对动态图像、数值读数与理论判断是否一致。",
-        "开始与暂停（Play / Pause）可用于观察瞬态过程、逐步比较参数改变前后的状态差异。",
-        "重置（Reset All）适合在完成一组变量控制后回到初始状态，重新组织实验步骤。",
-    ]
-    topic_specific = {
-        "motion": [
-            "位置与速度（Position / Velocity）常用于判断轨迹、方向与运动状态的变化。",
-            "加速度或力（Acceleration / Force）适合与运动图像对照分析因果关系。",
-        ],
-        "sound-and-waves": [
-            "频率与振幅（Frequency / Amplitude）通常决定波形的周期特征与能量表现。",
-            "相位或波长（Phase / Wavelength）适合用于比较干涉、驻波和传播特征。",
-        ],
-        "work-energy-and-power": [
-            "能量条或能量图（Energy Bars / Energy Graph）适合观察能量守恒与转化路径。",
-            "功率或做功（Power / Work）可用于分析过程快慢与能量转移效率。",
-        ],
-        "heat-and-thermodynamics": [
-            "温度与压强（Temperature / Pressure）适合结合粒子运动解释宏观状态变化。",
-            "热流或粒子图像（Heat Flow / Particles）有助于讨论热平衡与传热方向。",
-        ],
-        "quantum-phenomena": [
-            "测量（Measure）常用于比较测量前后状态、统计分布与结果更新。",
-            "概率或态（Probability / State）适合观察叠加、坍缩与统计结果之间的联系。",
-        ],
-        "light-and-radiation": [
-            "光源与介质（Light Source / Medium）适合分析入射条件变化后的传播效果。",
-            "波长与强度（Wavelength / Intensity）可用于讨论颜色、亮度与成像差异。",
-        ],
-        "electricity-magnets-and-circuits": [
-            "电压与电流（Voltage / Current）常用于分析元件两端状态与回路响应。",
-            "磁场与电荷（Magnetic Field / Charge）适合讨论场量分布与受力关系。",
-        ],
-    }
-    return common + topic_specific.get(topic_key, [])
 
 
 def pick_topic_spec(sim_id: int, metadata: dict[str, Any]) -> dict[str, Any]:
@@ -414,6 +570,415 @@ def pick_topic_spec(sim_id: int, metadata: dict[str, Any]) -> dict[str, Any]:
         if sim_id in simulation_ids:
             return spec
     return TOPIC_SPECS[0]
+
+
+def build_topic_layout(topic_key: str) -> str:
+    mapping = {
+        "motion": "界面通常由运动场景区、参数调节区和图像或读数区组成，适合同步比较现象、图像和数值。",
+        "sound-and-waves": "界面通常包含波源或驱动区、主显示区以及图像或读数区，适合比较波形、相位和传播效果。",
+        "work-energy-and-power": "界面通常包含主场景区、能量或功率显示区以及参数调节区，适合同时跟踪状态变化和能量流向。",
+        "heat-and-thermodynamics": "界面通常包含粒子或系统状态区、参数控制区以及图像/统计显示区，适合同时做宏观和微观解释。",
+        "quantum-phenomena": "界面通常由状态准备区、测量区和统计结果区组成，适合区分初态、测量操作与结果分布。",
+        "light-and-radiation": "界面通常包含光路展示区、几何参数控制区和成像/谱线显示区，适合同时分析结构和结果。",
+        "electricity-magnets-and-circuits": "界面通常包含器件区、实验搭建区和仪表/场量显示区，适合在结构与读数之间来回对应。",
+    }
+    return mapping.get(topic_key, "界面一般由实验场景、参数控制和结果显示三部分组成。")
+
+
+def build_research_focus(topic_key: str) -> str:
+    return {
+        "motion": "适合做参数控制、轨迹分析与动力学解释",
+        "sound-and-waves": "适合做波形分析、相位比较与振动过程解释",
+        "work-energy-and-power": "适合做能量转化、守恒与效率分析",
+        "heat-and-thermodynamics": "适合做状态变化、统计分布与相互作用分析",
+        "quantum-phenomena": "适合做状态准备、测量解释与概率分布分析",
+        "light-and-radiation": "适合做光路分析、成像比较与谱线解释",
+        "electricity-magnets-and-circuits": "适合做电路搭建、仪表读数与场量分析",
+    }.get(topic_key, "适合做参数分析与现象观察")
+
+
+def fetch_url_text(url: str) -> str:
+    if not url:
+        return ""
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "PhysicsAgent/1.0", "Accept": "text/html,application/json;q=0.9,*/*;q=0.8"},
+        method="GET",
+    )
+    for _ in range(2):
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except (urllib.error.HTTPError, urllib.error.URLError):
+            continue
+    return ""
+
+
+def is_ui_phrase(text: str) -> bool:
+    candidate = " ".join(text.split())
+    if len(candidate) < 3 or len(candidate) > 64:
+        return False
+    if not re.search(r"[A-Za-z]", candidate):
+        return False
+    if re.search(r"https?://|[{}<>]|\\.js$|\\.json$|\\.png$|\\.svg$", candidate, flags=re.IGNORECASE):
+        return False
+    if "/" in candidate and candidate.count("/") > 1:
+        return False
+    if re.search(r"[a-z][A-Z][a-z]", candidate) and " " not in candidate:
+        return False
+    if re.search(r"(Property|Node|Model|ScreenView|IO|prototype|PhET-iO|DisplayGlobals|Boolean Number String)", candidate):
+        return False
+    if candidate.isupper() and len(candidate) > 6:
+        return False
+    return True
+
+
+def extract_ui_phrases(raw_html: str) -> list[str]:
+    if not raw_html:
+        return []
+    matches: list[str] = []
+    patterns = [
+        r'"([^"\n\\]{3,64})"',
+        r"'([^'\n\\]{3,64})'",
+        r'aria-label="([^"]{3,64})"',
+        r'content="([^"]{3,64})"',
+    ]
+    for pattern in patterns:
+        matches.extend(re.findall(pattern, raw_html))
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for item in matches:
+        candidate = html.unescape(" ".join(item.split())).strip()
+        if not is_ui_phrase(candidate):
+            continue
+        key = candidate.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(candidate)
+    return cleaned
+
+
+def format_interface_term(zh_label: str, en_label: str, has_official_zh: bool) -> str:
+    return zh_label if has_official_zh or not en_label else f"{zh_label}（{en_label}）"
+
+
+def collect_matched_controls(ui_phrases: list[str]) -> list[tuple[str, str, str]]:
+    lowered = [item.lower() for item in ui_phrases]
+    matched: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    for keyword, zh_label, en_label, effect in CONTROL_LIBRARY:
+        if any(keyword in item for item in lowered):
+            if zh_label in seen:
+                continue
+            seen.add(zh_label)
+            matched.append((zh_label, en_label, effect))
+    return matched
+
+
+def collect_matched_readouts(ui_phrases: list[str]) -> list[str]:
+    lowered = [item.lower() for item in ui_phrases]
+    results: list[str] = []
+    seen: set[str] = set()
+    for keyword, text in READOUT_LIBRARY:
+        if any(keyword in item for item in lowered):
+            if text in seen:
+                continue
+            seen.add(text)
+            results.append(text)
+    return results
+
+
+def infer_screen_tokens(ui_phrases: list[str]) -> list[str]:
+    candidates: list[str] = []
+    for item in ui_phrases:
+        lower = item.lower()
+        if any(token in lower for token in ("screen", "lab", "intro", "basics", "model", "view", "experiment", "measurement", "graph")):
+            candidates.append(item)
+    results: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        key = item.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append(item)
+    return results[:6]
+
+
+def build_auto_screen_flow(title_zh: str, topic_key: str, screen_tokens: list[str], has_official_zh: bool) -> list[str]:
+    if screen_tokens:
+        flow: list[str] = []
+        first = screen_tokens[0]
+        flow.append(
+            f"进入实验后先辨认起始场景或主要页面 {format_interface_term(first, first, has_official_zh)}，确认当前讨论的是哪一类实验对象与变量。"
+        )
+        for token in screen_tokens[1:3]:
+            flow.append(
+                f"当切换到 {format_interface_term(token, token, has_official_zh)} 后，应重新识别该页面新增的控件、图像与读数，再继续做参数比较。"
+            )
+        flow.append("完成页面辨认后，再做单变量调节，并把动画现象、图像变化与读数变化放在一起解读。")
+        return flow[:4]
+
+    generic = {
+        "motion": [
+            f"进入 {title_zh} 后先辨认主运动场景、参数调节区和图像或读数区，再开始调节变量。",
+            "优先固定多数参数，只改变一个受力、位置、速度或几何量，比较现象是否出现临界变化。",
+            "当出现平衡、转折或周期变化时，应及时读取图像和读数区，不只依赖动画观察。",
+        ],
+        "sound-and-waves": [
+            f"进入 {title_zh} 后先确认当前波源或驱动方式，再辨认波形显示区和参数调节区。",
+            "随后改变频率、振幅、相位或边界条件，比较干涉、驻波或传播变化。",
+            "需要精读某一时刻时可先暂停，再观察图像、节点与读数之间的对应关系。",
+        ],
+        "work-energy-and-power": [
+            f"进入 {title_zh} 后先找到主场景区和能量/功率显示区，再观察参数控制入口。",
+            "随后改变高度、摩擦、输入功率或热交换条件，比较不同能量项的变化。",
+            "当出现明显转化或损耗时，应同时读取能量条和状态变化，避免只看动画。",
+        ],
+        "heat-and-thermodynamics": [
+            f"进入 {title_zh} 后先辨认粒子或系统状态区，再确认统计图像与参数调节区。",
+            "随后改变温度、粒子数、距离或相互作用参数，比较系统状态的变化路径。",
+            "当接近平衡点、相变边界或势阱位置时，应重点读取图像和数值变化。",
+        ],
+        "quantum-phenomena": [
+            f"进入 {title_zh} 后先辨认状态准备区、测量区和统计结果区之间的关系。",
+            "随后改变初态或测量设置，比较单次结果、重复测量和统计分布差异。",
+            "当界面切换到另一类状态或测量页面时，应重新确认当前研究对象和对应控件。",
+        ],
+        "light-and-radiation": [
+            f"进入 {title_zh} 后先确认光源、光学元件、像屏与主显示区的位置关系。",
+            "随后逐步改变几何量、焦距、介质或波长，比较光路与成像变化。",
+            "当像的位置、大小或亮度突变时，应回看光路和关键参数的变化来源。",
+        ],
+        "electricity-magnets-and-circuits": [
+            f"进入 {title_zh} 后先辨认器件区、搭建区和仪表或场量显示区。",
+            "随后先搭建最基本结构，再逐步添加元件和测量工具，比较读数变化。",
+            "当切换视图或引入新器件后，应先确认结构变化，再解读电流、电压或场量结果。",
+        ],
+    }
+    return generic.get(topic_key, [f"进入 {title_zh} 后先辨认控制区、主显示区和结果读数区，再开始调节参数。"])
+
+
+def build_auto_controls(topic_key: str, ui_phrases: list[str], has_official_zh: bool) -> list[str]:
+    matched = collect_matched_controls(ui_phrases)
+    results = [
+        f"{format_interface_term(zh_label, en_label, has_official_zh)}{effect}"
+        for zh_label, en_label, effect in matched[:5]
+    ]
+    topic_defaults = {
+        "motion": [
+            "位置、速度或受力相关控件用于改变运动初态和动力学条件，应优先做单变量调节。",
+            "开始与暂停用于冻结某一瞬时状态，便于结合图像和读数解释运动过程。",
+        ],
+        "sound-and-waves": [
+            "频率、振幅和相位相关控件用于改变波源特征，是观察波形变化的核心入口。",
+            "显示方式切换通常用于比较动画、图像和统计结果，应结合使用。",
+        ],
+        "work-energy-and-power": [
+            "能量或功率相关控件用于改变输入、损耗或边界条件，是理解转化过程的关键。",
+            "重置用于在完成一轮能量比较后迅速回到初态，重新组织实验顺序。",
+        ],
+        "heat-and-thermodynamics": [
+            "温度、粒子数、距离或相互作用相关控件用于改变系统状态，应与图像区同步对照。",
+            "开始与暂停适合用于对比平衡前后或状态转移前后的差异。",
+        ],
+        "quantum-phenomena": [
+            "状态准备控件用于设置初态，测量控件用于执行观测，两者不应混为一谈。",
+            "统计结果区应在多次重复后再做结论，避免用单次结果代表整体规律。",
+        ],
+        "light-and-radiation": [
+            "物距、焦距、波长和像屏位置是优先调节的核心变量，直接影响光路与成像结果。",
+            "图像显示区和像屏读数应结合使用，避免只凭视觉判断像的性质。",
+        ],
+        "electricity-magnets-and-circuits": [
+            "器件区用于改变回路结构，仪表区用于读取结果，应先确认结构再解读读数。",
+            "视图切换常用于比较实物连接和示意图，对排查接线问题很有帮助。",
+        ],
+    }
+    for item in topic_defaults.get(topic_key, []):
+        if item not in results:
+            results.append(item)
+    return results[:6]
+
+
+def build_auto_effects(topic_key: str) -> list[str]:
+    mapping = {
+        "motion": [
+            "参数变化通常会同步改变轨迹、速度、加速度或平衡状态。",
+            "跨过某些临界值后，系统可能从稳定转为失稳，或从静止转为运动。",
+            "图像中的斜率、曲率或周期变化往往能直接对应动力学量的变化。",
+        ],
+        "sound-and-waves": [
+            "频率和振幅变化会直接改变波形形态、能量分布和共振响应。",
+            "边界条件或相位差改变后，干涉结构和节点位置会明显调整。",
+            "暂停后读取图像更适合比较瞬时状态和相位关系。",
+        ],
+        "work-energy-and-power": [
+            "输入条件和耗散条件改变后，能量条或功率读数会出现重新分配。",
+            "某些现象变化并不代表总能量不守恒，而是转化路径发生了改变。",
+            "同时观察状态动画与能量读数，更容易解释系统为何加速、减速或发热。",
+        ],
+        "heat-and-thermodynamics": [
+            "温度、距离或相互作用变化通常会引起粒子分布、势能曲线和状态边界变化。",
+            "系统趋于平衡时，宏观读数和微观图像会逐渐对应起来。",
+            "当越过阈值或势阱边界时，现象会出现明显转折。",
+        ],
+        "quantum-phenomena": [
+            "初态和测量设置变化会改变长期统计分布，而不只是单次结果。",
+            "测量后的结果应结合状态更新理解，不能只看单步输出。",
+            "多次重复后的统计图最适合解释概率规律和经典/量子差异。",
+        ],
+        "light-and-radiation": [
+            "几何参数变化会同步影响像的位置、大小、亮度或方向。",
+            "光学元件和介质变化会改变光路，因此应同时比较路径和结果。",
+            "像屏位置不合适时，成像规律可能仍成立，但观察结果并不清晰。",
+        ],
+        "electricity-magnets-and-circuits": [
+            "器件参数和连接结构变化会共同决定电流、电压或场量分布。",
+            "错误放置仪表或误判串并联关系，往往会导致读数解释偏差。",
+            "结构变化、读数变化和发光/受力现象应放在同一条分析链中理解。",
+        ],
+    }
+    return mapping.get(topic_key, ["参数变化会引起现象、图像和读数的同步变化，应结合三者一起分析。"])
+
+
+def build_auto_readouts(topic_key: str, ui_phrases: list[str]) -> list[str]:
+    matched = collect_matched_readouts(ui_phrases)
+    defaults = {
+        "motion": ["重点读取位置、速度、加速度及其图像变化。"],
+        "sound-and-waves": ["重点读取波形、节点位置、频率变化和统计图像。"],
+        "work-energy-and-power": ["重点读取能量条、功率读数和状态变化。"],
+        "heat-and-thermodynamics": ["重点读取温度、压力、粒子分布或势能图像。"],
+        "quantum-phenomena": ["重点读取单次结果、概率显示和多次统计分布。"],
+        "light-and-radiation": ["重点读取光路、像屏位置、像的性质和相关读数。"],
+        "electricity-magnets-and-circuits": ["重点读取电流、电压、场线以及器件状态变化。"],
+    }
+    results = matched[:4]
+    for item in defaults.get(topic_key, []):
+        if item not in results:
+            results.append(item)
+    return results[:4]
+
+
+def build_auto_terms(ui_phrases: list[str], topic_key: str, has_official_zh: bool) -> list[str]:
+    matched = collect_matched_controls(ui_phrases)
+    terms = [
+        f"{format_interface_term(zh_label, en_label, has_official_zh)}是当前实验中需要优先辨认的界面术语。"
+        for zh_label, en_label, _ in matched[:5]
+    ]
+    if terms:
+        return terms
+    defaults = {
+        "motion": ["位置、速度、加速度等术语通常对应主显示区中的关键状态量。"],
+        "sound-and-waves": ["频率、振幅、相位和波长通常是最重要的界面术语。"],
+        "work-energy-and-power": ["能量、功率、热量或做功相关术语通常出现在显示区与图像区。"],
+        "heat-and-thermodynamics": ["温度、压力、粒子、相互作用等术语通常对应参数区和图像区。"],
+        "quantum-phenomena": ["状态、概率、测量等术语通常对应准备区、测量区和统计结果区。"],
+        "light-and-radiation": ["物体、透镜、镜面、像屏、波长等术语通常是核心界面词。"],
+        "electricity-magnets-and-circuits": ["电流、电压、电阻、电池、开关等术语通常对应器件区和仪表区。"],
+    }
+    return defaults.get(topic_key, ["先辨认界面中的核心术语，再开始调节参数。"])
+
+
+def build_hidden_tutor_prompt(
+    *,
+    title_zh: str,
+    topic_label_zh: str,
+    intro_zh: str,
+    layout_zh: str,
+    screen_flow_zh: list[str],
+    controls_zh: list[str],
+    effects_zh: list[str],
+    readouts_zh: list[str],
+    terms_zh: list[str],
+) -> str:
+    parts = [
+        f"你当前正在以“{title_zh}”课外仿真实验的专属助教身份回答问题。",
+        f"实验主题：{topic_label_zh}",
+        f"实验原理概述：{intro_zh}",
+        f"界面结构：{layout_zh}",
+        "页面流转：",
+        *[f"- {item}" for item in screen_flow_zh[:4]],
+        "关键控件：",
+        *[f"- {item}" for item in controls_zh[:6]],
+        "关键读数与显示：",
+        *[f"- {item}" for item in readouts_zh[:4]],
+        "参数变化常见影响：",
+        *[f"- {item}" for item in effects_zh[:4]],
+        "界面术语：",
+        *[f"- {item}" for item in terms_zh[:5]],
+        "回答要求：优先判断用户当前处于哪个页面或场景、哪些控件被改变、哪些读数最关键；若请求中带有当前仿真截图，则优先阅读截图中的参数状态、按钮状态、图像和读数，再给出解释。",
+        "不要脱离当前实验界面泛泛而谈；若界面信息不足，应明确指出需要用户补充哪个页面、哪个读数或哪个操作结果。",
+    ]
+    return "\n".join(parts)
+
+
+def build_ui_profile(
+    *,
+    slug: str,
+    title_zh: str,
+    title_en: str,
+    topic_key: str,
+    topic_label_zh: str,
+    intro_zh: str,
+    analysis_url: str,
+    has_official_zh: bool,
+) -> dict[str, Any]:
+    ui_phrases = extract_ui_phrases(fetch_url_text(analysis_url))
+    screen_tokens = infer_screen_tokens(ui_phrases)
+    override = SIM_UI_OVERRIDES.get(slug, {})
+
+    layout_zh = str(override.get("layout_zh") or build_topic_layout(topic_key)).strip()
+    screen_flow_zh = [
+        str(item).strip()
+        for item in (override.get("screen_flow_zh") or build_auto_screen_flow(title_zh, topic_key, screen_tokens, has_official_zh))
+        if str(item).strip()
+    ]
+    controls_zh = [
+        str(item).strip()
+        for item in (override.get("controls_zh") or build_auto_controls(topic_key, ui_phrases, has_official_zh))
+        if str(item).strip()
+    ]
+    effects_zh = [str(item).strip() for item in (override.get("effects_zh") or build_auto_effects(topic_key)) if str(item).strip()]
+    readouts_zh = [str(item).strip() for item in (override.get("readouts_zh") or build_auto_readouts(topic_key, ui_phrases)) if str(item).strip()]
+    terms_zh = [str(item).strip() for item in (override.get("terms_zh") or build_auto_terms(ui_phrases, topic_key, has_official_zh)) if str(item).strip()]
+
+    interface_guidance_zh = [layout_zh, *screen_flow_zh[:2], *controls_zh[:3]]
+    hidden_tutor_prompt_zh = str(
+        override.get("hidden_tutor_prompt_zh")
+        or build_hidden_tutor_prompt(
+            title_zh=title_zh,
+            topic_label_zh=topic_label_zh,
+            intro_zh=intro_zh,
+            layout_zh=layout_zh,
+            screen_flow_zh=screen_flow_zh,
+            controls_zh=controls_zh,
+            effects_zh=effects_zh,
+            readouts_zh=readouts_zh,
+            terms_zh=terms_zh,
+        )
+    ).strip()
+
+    needs_manual_review = bool(
+        override.get(
+            "needs_manual_review",
+            len(ui_phrases) < 12 or len(screen_flow_zh) < 2 or len(controls_zh) < 2,
+        )
+    )
+
+    return {
+        "layout_zh": layout_zh,
+        "screen_flow_zh": screen_flow_zh,
+        "controls_zh": controls_zh,
+        "effects_zh": effects_zh,
+        "readouts_zh": readouts_zh,
+        "terms_zh": terms_zh,
+        "interface_guidance_zh": interface_guidance_zh,
+        "hidden_tutor_prompt_zh": hidden_tutor_prompt_zh,
+        "ui_profile_version": UI_PROFILE_VERSION,
+        "needs_manual_review": needs_manual_review,
+    }
 
 
 class PhetCatalogService:
@@ -446,10 +1011,7 @@ class PhetCatalogService:
         url = PHET_METADATA_URL.format(locale=locale)
         request = urllib.request.Request(
             url,
-            headers={
-                "User-Agent": "PhysicsAgent/1.0",
-                "Accept": "application/json",
-            },
+            headers={"User-Agent": "PhysicsAgent/1.0", "Accept": "application/json"},
             method="GET",
         )
         try:
@@ -477,12 +1039,12 @@ class PhetCatalogService:
             for spec in TOPIC_SPECS
         }
 
+        base_items: list[tuple[str, dict[str, Any]]] = []
         for project in en_metadata.get("projects", []):
             for simulation in project.get("simulations", []):
                 sim_id = int(simulation.get("id") or 0)
                 if sim_id not in physics_ids:
                     continue
-
                 slug = str(simulation.get("name") or "").strip()
                 if not slug:
                     continue
@@ -503,10 +1065,10 @@ class PhetCatalogService:
 
                 title_en = normalize_text(localized_en.get("title") or slug)
                 raw_title_zh = normalize_text((localized_zh or {}).get("title"))
-                title_zh = raw_title_zh if raw_title_zh and not contains_english_words(raw_title_zh) else translate_title_fallback(title_en)
+                title_zh = raw_title_zh if raw_title_zh and not contains_english_words(raw_title_zh) else translate_title_fallback(title_en, slug)
+
                 intro_zh = normalize_text((localized_zh or {}).get("description"))
                 learning_goals_zh = normalize_text((localized_zh or {}).get("learningGoals"))
-
                 if needs_generated_chinese(intro_zh):
                     intro_zh = build_generated_intro(title_zh, topic_spec["topic_label_zh"])
                 if needs_generated_chinese(learning_goals_zh):
@@ -519,26 +1081,57 @@ class PhetCatalogService:
                 if not embed_url:
                     continue
 
-                groups[topic_spec["topic_key"]]["sims"].append(
-                    {
-                        "slug": slug,
-                        "sim_id": sim_id,
-                        "title_zh": title_zh,
-                        "title_en": title_en,
-                        "topic_zh": topic_spec["topic_label_zh"],
-                        "topic_en": topic_spec["topic_label_en"],
-                        "intro_zh": intro_zh,
-                        "learning_goals_zh": learning_goals_zh,
-                        "official_page_url": official_page_url,
-                        "embed_url": embed_url,
-                        "has_official_zh": has_official_zh,
-                        "translation_source": "official" if normalize_text((localized_zh or {}).get("description")) else "generated",
-                        "research_focus_zh": build_research_focus(topic_spec["topic_key"]),
-                        "observation_points": topic_spec["observation_points"],
-                        "suggested_questions": topic_spec["suggested_questions"],
-                        "interface_guidance_zh": build_interface_guidance(topic_spec["topic_key"]),
-                    }
+                base_items.append(
+                    (
+                        topic_spec["topic_key"],
+                        {
+                            "slug": slug,
+                            "sim_id": sim_id,
+                            "title_zh": title_zh,
+                            "title_en": title_en,
+                            "topic_zh": topic_spec["topic_label_zh"],
+                            "topic_en": topic_spec["topic_label_en"],
+                            "intro_zh": intro_zh,
+                            "learning_goals_zh": learning_goals_zh,
+                            "official_page_url": official_page_url,
+                            "embed_url": embed_url,
+                            "has_official_zh": has_official_zh,
+                            "translation_source": "official" if normalize_text((localized_zh or {}).get("description")) else "generated",
+                            "research_focus_zh": topic_spec["research_focus_zh"],
+                            "observation_points": topic_spec["observation_points"],
+                            "suggested_questions": topic_spec["suggested_questions"],
+                            "_analysis_url": choose_analysis_url(localized_en, all_locales_url),
+                            "_topic_key": topic_spec["topic_key"],
+                        },
+                    )
                 )
+
+        with ThreadPoolExecutor(max_workers=FETCH_WORKERS) as executor:
+            future_map = {
+                executor.submit(self._build_enriched_item, item): (topic_key, item)
+                for topic_key, item in base_items
+            }
+            for future in as_completed(future_map):
+                topic_key, fallback_item = future_map[future]
+                try:
+                    groups[topic_key]["sims"].append(future.result())
+                except Exception:
+                    fallback = dict(fallback_item)
+                    fallback.update(
+                        build_ui_profile(
+                            slug=fallback["slug"],
+                            title_zh=fallback["title_zh"],
+                            title_en=fallback["title_en"],
+                            topic_key=fallback["_topic_key"],
+                            topic_label_zh=fallback["topic_zh"],
+                            intro_zh=fallback["intro_zh"],
+                            analysis_url="",
+                            has_official_zh=bool(fallback["has_official_zh"]),
+                        )
+                    )
+                    fallback.pop("_analysis_url", None)
+                    fallback.pop("_topic_key", None)
+                    groups[topic_key]["sims"].append(fallback)
 
         ordered_groups: list[dict[str, Any]] = []
         total = 0
@@ -552,10 +1145,29 @@ class PhetCatalogService:
 
         return {
             "schema_version": CATALOG_SCHEMA_VERSION,
+            "ui_profile_version": UI_PROFILE_VERSION,
             "updated_at": utc_now_iso(),
             "total": total,
             "groups": ordered_groups,
         }
+
+    def _build_enriched_item(self, item: dict[str, Any]) -> dict[str, Any]:
+        enriched = dict(item)
+        enriched.update(
+            build_ui_profile(
+                slug=item["slug"],
+                title_zh=item["title_zh"],
+                title_en=item["title_en"],
+                topic_key=item["_topic_key"],
+                topic_label_zh=item["topic_zh"],
+                intro_zh=item["intro_zh"],
+                analysis_url=item["_analysis_url"],
+                has_official_zh=bool(item["has_official_zh"]),
+            )
+        )
+        enriched.pop("_analysis_url", None)
+        enriched.pop("_topic_key", None)
+        return enriched
 
     def _simulation_map(self, metadata: dict[str, Any]) -> dict[str, dict[str, Any]]:
         simulations: dict[str, dict[str, Any]] = {}
@@ -582,7 +1194,16 @@ class PhetCatalogService:
             return False
         for group in payload.get("groups", []):
             for sim in group.get("sims", []):
-                return isinstance(sim.get("interface_guidance_zh"), list)
+                return (
+                    isinstance(sim.get("interface_guidance_zh"), list)
+                    and isinstance(sim.get("screen_flow_zh"), list)
+                    and isinstance(sim.get("controls_zh"), list)
+                    and isinstance(sim.get("effects_zh"), list)
+                    and isinstance(sim.get("readouts_zh"), list)
+                    and isinstance(sim.get("terms_zh"), list)
+                    and isinstance(sim.get("hidden_tutor_prompt_zh"), str)
+                    and isinstance(sim.get("layout_zh"), str)
+                )
         return True
 
     def _is_stale(self, payload: dict[str, Any]) -> bool:

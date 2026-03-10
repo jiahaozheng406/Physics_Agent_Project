@@ -1,1 +1,8 @@
 .env
+__pycache__/
+*.pyc
+server.out.log
+server.err.log
+data/*.sqlite3
+data/phet_catalog.json
+uploads/
