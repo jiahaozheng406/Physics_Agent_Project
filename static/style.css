@@ -1756,6 +1756,33 @@ body::before {
   margin: 0;
 }
 
+.phet-guidance-section + .phet-guidance-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(21, 34, 57, 0.08);
+}
+
+.phet-guidance-title {
+  margin: 0 0 8px;
+  color: #16243b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.phet-guidance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.phet-guidance-item {
+  color: #33445f;
+  font-size: 13px;
+  line-height: 1.72;
+  margin: 0;
+}
+
 .phet-suggestion-list {
   display: flex;
   flex-direction: column;

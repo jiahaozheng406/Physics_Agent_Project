@@ -6,19 +6,22 @@ import os
 import re
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from backend.phet_ui_overrides import SIM_UI_OVERRIDES as DETAILED_SIM_UI_OVERRIDES
+
 
 PHET_BASE_URL = "https://phet.colorado.edu"
 PHET_METADATA_URL = PHET_BASE_URL + "/services/metadata/1.3/simulations?format=json&locale={locale}"
 PHYSICS_CATEGORY_ID = "4"
 DEFAULT_CACHE_MAX_AGE_SECONDS = 24 * 60 * 60
-CATALOG_SCHEMA_VERSION = 4
-UI_PROFILE_VERSION = "2026.03.deep-1"
+CATALOG_SCHEMA_VERSION = 5
+UI_PROFILE_VERSION = "2026.03.deep-2"
 FETCH_WORKERS = 8
 
 TOPIC_SPECS = [
@@ -981,6 +984,544 @@ def build_ui_profile(
     }
 
 
+BIDI_CONTROL_RE = re.compile(r"[\u202a-\u202e\u2066-\u2069]")
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/json;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+}
+COMMON_LABEL_TRANSLATIONS = {
+    "mass 1": "质量 1",
+    "mass 2": "质量 2",
+    "mass": "质量",
+    "planet mass": "行星质量",
+    "satellite mass": "卫星质量",
+    "star mass": "恒星质量",
+    "moon mass": "月球质量",
+    "space station mass": "空间站质量",
+    "constant size": "大小不变",
+    "force values": "力值",
+    "gravity force": "引力",
+    "move spheres": "移动球体",
+    "move sphere": "移动球体",
+    "ruler": "尺子",
+    "measuring tape": "测量带",
+    "distance": "距离",
+    "path": "轨道",
+    "grid": "网格",
+    "return objects": "返回物体",
+    "clear": "清除轨迹",
+    "model": "模型",
+    "to scale": "按比例",
+    "lens": "透镜",
+    "mirror": "镜面",
+    "object": "物体",
+    "screen": "像屏",
+    "focal points": "焦点",
+    "focal length": "焦距",
+    "virtual image": "虚像",
+    "real image": "实像",
+    "classical coin": "经典硬币",
+    "quantum \"coin\"": "量子“硬币”",
+    "start measurement": "开始测量",
+    "new coin": "新硬币",
+    "prepared state": "准备态",
+    "initial orientation": "初始朝向",
+    "coin bias (state)": "硬币偏置（状态）",
+    "single coin measurements": "单硬币测量",
+    "multiple coin measurements": "多硬币测量",
+    "probability": "概率",
+    "battery": "电池",
+    "wire": "导线",
+    "light bulb": "灯泡",
+    "resistor": "电阻",
+    "switch": "开关",
+    "show current": "显示电流",
+    "electrons": "电子",
+    "ammeter": "电流表",
+    "voltmeter": "电压表",
+    "current chart": "电流图",
+    "voltage chart": "电压图",
+    "frequency": "频率",
+    "amplitude": "振幅",
+    "phase": "相位",
+    "wavelength": "波长",
+    "energy": "能量",
+    "friction": "摩擦",
+    "velocity": "速度",
+}
+NOISE_KEY_PREFIXES = (
+    "joist/menuitem",
+    "joist/updates",
+    "joist/credits",
+    "joist/preferences.tabs",
+    "joist/translation",
+    "joist/thirdparty",
+    "scenery_phet/key.",
+    "scenery_phet/keyboardhelpdialog",
+)
+RELEVANT_HINTS = (
+    "screen",
+    "model",
+    "scale",
+    "mass",
+    "force",
+    "distance",
+    "ruler",
+    "tape",
+    "move sphere",
+    "path",
+    "grid",
+    "object",
+    "image",
+    "lens",
+    "mirror",
+    "focal",
+    "coin",
+    "probability",
+    "measure",
+    "state",
+    "orientation",
+    "bias",
+    "battery",
+    "bulb",
+    "resistor",
+    "switch",
+    "ammeter",
+    "voltmeter",
+    "wire",
+    "electron",
+    "current",
+    "voltage",
+    "frequency",
+    "amplitude",
+    "phase",
+    "wavelength",
+    "energy",
+    "friction",
+    "velocity",
+    "orbit",
+)
+
+
+def normalize_text(raw: Any) -> str:
+    if raw is None:
+        return ""
+    text = str(raw).replace("\r\n", "\n").replace("\r", "\n").replace("\xa0", " ")
+    text = BIDI_CONTROL_RE.sub("", text)
+    text = re.sub(r"<\s*br\s*/?\s*>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    lines = [" ".join(line.split()) for line in text.split("\n")]
+    return "\n".join(line for line in lines if line).strip()
+
+
+def fetch_url_text(url: str) -> str:
+    if not url:
+        return ""
+    request = urllib.request.Request(url, headers=BROWSER_HEADERS, method="GET")
+    for _ in range(2):
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except (urllib.error.HTTPError, urllib.error.URLError):
+            continue
+    return ""
+
+
+def fetch_json_dict(url: str) -> dict[str, Any]:
+    raw = fetch_url_text(url)
+    if not raw.strip():
+        return {}
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def derive_asset_base_url(analysis_url: str) -> str:
+    if not analysis_url:
+        return ""
+    match = re.search(r"(https://phet\.colorado\.edu/sims/html/[^/]+/latest)", analysis_url)
+    if match:
+        return match.group(1)
+    return analysis_url.rsplit("/", 1)[0]
+
+
+def fetch_sim_string_maps(analysis_url: str, has_official_zh: bool) -> tuple[dict[str, Any], dict[str, Any]]:
+    base_url = derive_asset_base_url(analysis_url)
+    if not base_url:
+        return {}, {}
+    en_map = fetch_json_dict(f"{base_url}/english-string-map.json")
+    zh_map = fetch_json_dict(f"{base_url}/zh_CN-string-map.json") if has_official_zh else {}
+    return en_map, zh_map
+
+
+def extract_bundle_phrases(analysis_url: str) -> list[str]:
+    raw_html = fetch_url_text(analysis_url)
+    if not raw_html:
+        return []
+    phrases = extract_ui_phrases(raw_html)
+    results: list[str] = []
+    seen: set[str] = set()
+    for item in phrases:
+        clean = normalize_text(item)
+        key = clean.lower()
+        if not clean or key in seen:
+            continue
+        seen.add(key)
+        results.append(clean)
+        if len(results) >= 140:
+            break
+    return results
+
+
+def is_relevant_string_entry(key: str, text: str) -> bool:
+    key_lower = key.lower()
+    text_lower = text.lower()
+    if not text_lower:
+        return False
+    if any(key_lower.startswith(prefix) for prefix in NOISE_KEY_PREFIXES):
+        return False
+    if "http" in text_lower or "copyright" in text_lower or "licensing" in text_lower:
+        return False
+    if len(text_lower) > 220:
+        return False
+    return any(hint in key_lower or hint in text_lower for hint in RELEVANT_HINTS)
+
+
+def build_ui_entries(
+    en_map: dict[str, Any],
+    zh_map: dict[str, Any],
+    bundle_phrases: list[str],
+) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for key in dict.fromkeys([*en_map.keys(), *zh_map.keys()]):
+        en_text = normalize_text(en_map.get(key))
+        zh_text = normalize_text(zh_map.get(key))
+        if not is_relevant_string_entry(key, en_text or zh_text):
+            continue
+        item = {
+            "key": key.lower(),
+            "key_raw": key,
+            "en": en_text,
+            "zh": zh_text,
+            "search": f"{key} {en_text} {zh_text}".lower(),
+        }
+        marker = (item["key"], item["en"], item["zh"])
+        if marker in seen:
+            continue
+        seen.add(marker)
+        entries.append(item)
+    for phrase in bundle_phrases:
+        search = phrase.lower()
+        if not any(hint in search for hint in RELEVANT_HINTS):
+            continue
+        marker = ("bundle", phrase, "")
+        if marker in seen:
+            continue
+        seen.add(marker)
+        entries.append({"key": f"bundle:{search}", "key_raw": "bundle", "en": phrase, "zh": "", "search": search})
+    return entries
+
+
+def format_entry_label(entry: dict[str, str]) -> str:
+    zh_text = entry.get("zh", "")
+    en_text = entry.get("en", "")
+    if zh_text and not contains_english_words(zh_text):
+        if en_text and zh_text != en_text:
+            return f"{zh_text}（{en_text}）"
+        return zh_text
+    english_clean = en_text.strip().strip(":")
+    translated = COMMON_LABEL_TRANSLATIONS.get(english_clean.lower()) if english_clean else ""
+    if translated and english_clean:
+        return f"{translated}（{english_clean}）"
+    return english_clean or zh_text or entry.get("key_raw", "")
+
+
+def find_matching_entries(entries: list[dict[str, str]], patterns: list[str], *, limit: int = 6) -> list[dict[str, str]]:
+    results: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for entry in entries:
+        if not any(pattern in entry["search"] for pattern in patterns):
+            continue
+        label = format_entry_label(entry)
+        if not label or label in seen:
+            continue
+        seen.add(label)
+        results.append(entry)
+        if len(results) >= limit:
+            break
+    return results
+
+
+def labels_for_patterns(entries: list[dict[str, str]], patterns: list[str], *, limit: int = 6) -> list[str]:
+    return [format_entry_label(entry) for entry in find_matching_entries(entries, patterns, limit=limit)]
+
+
+def append_unique(target: list[str], text: str) -> None:
+    clean = normalize_text(text)
+    if clean and clean not in target:
+        target.append(clean)
+
+
+def extract_screen_names(slug: str, entries: list[dict[str, str]]) -> list[str]:
+    screen_labels: list[str] = []
+    for entry in entries:
+        key = entry["key"]
+        if "/screen." in key or key.endswith(".screen") or key.endswith("/screen.lab"):
+            append_unique(screen_labels, format_entry_label(entry))
+    if slug == "gravity-and-orbits":
+        for label in labels_for_patterns(entries, ["gravity_and_orbits/model", " gravity_and_orbits/model ", "gravity_and_orbits/to scale", "gravity_and_orbits/toscale", " to scale "]):
+            append_unique(screen_labels, label)
+        append_unique(screen_labels, "模型（Model）")
+        append_unique(screen_labels, "按比例（To Scale）")
+    return screen_labels[:4]
+
+
+def build_specific_sections(
+    slug: str,
+    topic_key: str,
+    title_zh: str,
+    entries: list[dict[str, str]],
+    screen_names: list[str],
+) -> dict[str, list[str] | str]:
+    controls: list[str] = []
+    effects: list[str] = []
+    readouts: list[str] = []
+    first_steps: list[str] = []
+    terms: list[str] = []
+
+    mass_labels = labels_for_patterns(entries, ["mass 1", "mass 2", "planet mass", "satellite mass", "star mass", "moon mass", "space station mass"], limit=6)
+    constant_size_labels = labels_for_patterns(entries, ["constant size"], limit=2)
+    force_value_labels = labels_for_patterns(entries, ["force values", "gravity force"], limit=3)
+    move_labels = labels_for_patterns(entries, ["move spheres", "move sphere"], limit=2)
+    ruler_labels = labels_for_patterns(entries, ["ruler", "measuring tape", "distance"], limit=3)
+    orbit_labels = labels_for_patterns(entries, ["path", "grid", "return objects", "clear"], limit=4)
+    optics_labels = labels_for_patterns(entries, ["lens", "mirror", "focal length", "focal points", "virtual image", "real image", "screen", "object"], limit=8)
+    quantum_labels = labels_for_patterns(entries, ["classical coin", "quantum \"coin\"", "start measurement", "new coin", "prepared state", "initial orientation", "coin bias", "probability", "single coin measurements", "multiple coin measurements"], limit=10)
+    circuit_labels = labels_for_patterns(entries, ["battery", "wire", "light bulb", "resistor", "switch", "show current", "electrons", "ammeter", "voltmeter", "current chart", "voltage chart"], limit=10)
+    wave_labels = labels_for_patterns(entries, ["frequency", "amplitude", "phase", "wavelength"], limit=6)
+
+    if mass_labels:
+        append_unique(controls, f"{'、'.join(mass_labels[:4])} 是当前界面中最值得优先单独调节的质量相关控件；一次只改一个质量量，更容易看清力、轨道或图像变化来自哪里。")
+        append_unique(effects, "当质量相关控件变化时，系统中的引力、轨道弯曲、箭头长度或对应读数通常会同步改变，因此应先固定其余变量再解释。")
+        append_unique(terms, f"{mass_labels[0]} 是当前实验需要优先辨认的质量控制入口。")
+
+    if constant_size_labels:
+        append_unique(controls, f"{constant_size_labels[0]} 用于把球体显示大小固定住，便于把注意力放在质量数值和力值变化上，而不是被图形大小变化干扰。")
+        append_unique(effects, f"勾选 {constant_size_labels[0]} 后，视觉大小不再跟着质量变化，但引力仍会继续变化，因此它不会让引力保持不变。")
+        append_unique(terms, f"{constant_size_labels[0]} 表示固定球体显示大小的选项。")
+
+    if force_value_labels:
+        append_unique(controls, f"{'、'.join(force_value_labels)} 用于直接显示当前作用力的数值，是验证参数变化与力大小关系的关键显示项。")
+        append_unique(readouts, f"重点读取 {'、'.join(force_value_labels)} 中的数值，再和当前图像或箭头长度做对照。")
+        append_unique(first_steps, f"先打开 {force_value_labels[0]}，保证每次改参数后都能立即看到数值变化。")
+
+    if move_labels or ruler_labels:
+        visible_tools = "、".join((move_labels + ruler_labels)[:4])
+        append_unique(controls, f"{visible_tools} 负责改变物体间距或读取当前距离，最适合用来验证“距离改变后现象和数值会怎样变”。")
+        append_unique(effects, "当距离相关控件变化时，系统的受力强弱、轨道尺度或图像位置通常会明显变化，距离越近时变化往往更敏感。")
+        append_unique(readouts, f"如果界面已经显示 {visible_tools}，应优先读取距离或位置读数，不要只靠视觉估计。")
+
+    if orbit_labels:
+        append_unique(controls, f"{'、'.join(orbit_labels[:4])} 适合配合质量或速度调节一起使用，用来对比轨道形状、尺度和历史轨迹。")
+        append_unique(effects, "打开轨迹、网格或测量工具后，更容易分清当前变化是轨道形状变了、尺度变了，还是仅仅显示方式变了。")
+
+    if optics_labels:
+        append_unique(controls, f"{'、'.join(optics_labels[:5])} 构成了当前光学页面的主控件与主对象；先辨认物体、光学元件和像屏，再解释成像结果。")
+        append_unique(effects, "焦距、物体位置和像屏位置变化会一起影响像的位置、大小、正倒和清晰度，因此应同时看光路和像的状态。")
+        append_unique(readouts, "光学实验应优先读取物体位置、焦点位置、像屏位置以及真实像/虚像状态。")
+        append_unique(first_steps, "先固定焦距，只移动物体位置；等成像规律看清以后，再移动像屏或切换页面。")
+
+    if quantum_labels:
+        append_unique(controls, f"{'、'.join(quantum_labels[:6])} 是当前量子硬币页面的核心入口；先确定准备态，再进入测量。")
+        append_unique(effects, "改变准备态或偏置后，单次结果可能仍然随机，但多次测量后的概率分布会系统性改变。")
+        append_unique(readouts, "量子硬币实验应优先读取概率显示、准备态信息以及单次/多次测量结果。")
+        append_unique(first_steps, "先确定你正在比较经典硬币还是量子“硬币”，再固定一个准备态去做重复测量。")
+
+    if circuit_labels:
+        append_unique(controls, f"{'、'.join(circuit_labels[:6])} 构成当前电路页面的核心器件和测量工具；应先确认回路是否闭合，再解释读数。")
+        append_unique(effects, "电池、开关、电阻和测量工具改变后，电流、电压、电子流和灯泡亮度往往会一起变化，因此要把结构变化和读数变化对应起来。")
+        append_unique(readouts, "电路实验应优先读取电流、电压、电子流显示和灯泡亮度，而不是只看元件摆放。")
+        append_unique(first_steps, "先搭一个最简单的闭合回路，再加入电阻、开关和仪表逐项比较。")
+
+    if wave_labels:
+        append_unique(controls, f"{'、'.join(wave_labels[:4])} 是当前波动页面的关键控制量，建议每次只改一个量。")
+        append_unique(effects, "频率、振幅、相位或波长变化后，波形、干涉结构或传播速度会发生对应变化。")
+        append_unique(readouts, "波动实验应同时读取波形、节点位置和相关数值，避免只看动画。")
+
+    if not screen_names and topic_key == "quantum-phenomena":
+        append_unique(first_steps, "先辨认当前页面里哪个区域负责准备态，哪个区域负责执行测量，哪个区域负责显示统计结果。")
+    if screen_names:
+        if len(screen_names) == 1:
+            append_unique(first_steps, f"先确认当前就在 {screen_names[0]} 页面，再辨认该页面的控件和读数。")
+        else:
+            append_unique(first_steps, f"先在首页分清 {screen_names[0]} 和 {screen_names[1]} 这类不同页面，再进入当前页面做单变量比较。")
+
+    if not controls:
+        visible_labels = labels_for_patterns(entries, list(RELEVANT_HINTS), limit=5)
+        if visible_labels:
+            append_unique(controls, f"当前界面已经出现 {'、'.join(visible_labels)} 等控件或显示项，先辨认它们分别控制什么，再开始调参。")
+    if not effects:
+        append_unique(effects, f"{title_zh} 中的参数变化应与动画现象、图像变化和数值读数一起解释，不能只看其中一个。")
+    if not readouts:
+        append_unique(readouts, "先找到当前页面中真正会变的数值、图像或状态标记，再根据这些变化判断参数作用。")
+    if not first_steps:
+        append_unique(first_steps, "先确认当前在哪个页面，再固定大部分参数，只改变一个控件去观察结果。")
+    if not terms:
+        visible_labels = labels_for_patterns(entries, list(RELEVANT_HINTS), limit=4)
+        for label in visible_labels[:4]:
+            append_unique(terms, f"{label} 是当前实验中需要优先辨认的界面术语。")
+
+    return {
+        "controls_zh": controls[:6],
+        "interaction_effects_zh": effects[:6],
+        "readouts_zh": readouts[:5],
+        "first_steps_zh": first_steps[:5],
+        "terms_zh": terms[:6],
+    }
+
+
+def build_auto_screen_flow_v2(title_zh: str, topic_key: str, screen_names: list[str]) -> list[str]:
+    if len(screen_names) >= 2:
+        return [
+            f"先在首页分清 {screen_names[0]}、{screen_names[1]} 等不同页面，再决定你当前要比较的是哪一类场景。",
+            f"进入 {screen_names[0]} 这类页面后，先辨认该页面新增的主控件、主对象和结果显示区。",
+            "当切换到另一页面后，必须重新确认当前的控件含义和观察重点，再继续做参数比较。",
+        ]
+    if len(screen_names) == 1:
+        return [
+            f"进入实验后先确认当前处于 {screen_names[0]} 页面，再辨认该页面的主控件和读数区。",
+            "完成页面定位后，再开始单变量调节，并把画面变化和数值变化放在一起解释。",
+        ]
+    return build_auto_screen_flow(title_zh, topic_key, [], False)
+
+
+def build_auto_layout_v2(topic_key: str, screen_names: list[str]) -> str:
+    if screen_names:
+        return f"该实验存在 {len(screen_names)} 个主要页面或场景切换入口，进入具体页面后通常需要在主场景区、参数控制区和读数/显示区之间来回对照。"
+    return build_topic_layout(topic_key)
+
+
+def build_hidden_tutor_prompt(
+    *,
+    title_zh: str,
+    topic_label_zh: str,
+    intro_zh: str,
+    layout_zh: str,
+    screen_flow_zh: list[str],
+    controls_zh: list[str],
+    interaction_effects_zh: list[str],
+    readouts_zh: list[str],
+    first_steps_zh: list[str],
+    terms_zh: list[str],
+) -> str:
+    parts = [
+        f"你当前正在以“{title_zh}”课外仿真实验的专属助教身份回答问题。",
+        f"实验主题：{topic_label_zh}",
+        f"实验原理概述：{intro_zh}",
+        f"界面结构：{layout_zh}",
+        "页面流转：",
+        *[f"- {item}" for item in screen_flow_zh[:4]],
+        "建议先做哪一步：",
+        *[f"- {item}" for item in first_steps_zh[:4]],
+        "可以调什么：",
+        *[f"- {item}" for item in controls_zh[:6]],
+        "怎么调会发生什么：",
+        *[f"- {item}" for item in interaction_effects_zh[:5]],
+        "关键读数与结果区：",
+        *[f"- {item}" for item in readouts_zh[:5]],
+        "界面术语：",
+        *[f"- {item}" for item in terms_zh[:6]],
+        "回答顺序必须是：先定位当前页面和控件，再解释当前截图或描述中的参数、读数和现象，最后再解释物理原理。",
+        "如果用户没有说明当前在哪个页面、改了哪个控件，应优先根据截图判断；截图仍不足时，要用当前实验真实控件名继续追问。",
+        "不要脱离当前实验界面泛泛而谈，不要只背公式。若界面信息不足，必须明确指出还缺哪一个页面、控件、勾选项或读数。",
+    ]
+    return "\n".join(parts)
+
+
+def build_ui_profile(
+    *,
+    slug: str,
+    title_zh: str,
+    title_en: str,
+    topic_key: str,
+    topic_label_zh: str,
+    intro_zh: str,
+    analysis_url: str,
+    has_official_zh: bool,
+) -> dict[str, Any]:
+    en_map, zh_map = fetch_sim_string_maps(analysis_url, has_official_zh)
+    bundle_phrases = extract_bundle_phrases(analysis_url)
+    entries = build_ui_entries(en_map, zh_map, bundle_phrases)
+    screen_names = extract_screen_names(slug, entries)
+
+    override = dict(SIM_UI_OVERRIDES.get(slug, {}))
+    override.update(DETAILED_SIM_UI_OVERRIDES.get(slug, {}))
+
+    layout_zh = str(override.get("layout_zh") or build_auto_layout_v2(topic_key, screen_names)).strip()
+    screen_flow_zh = [
+        str(item).strip()
+        for item in (override.get("screen_flow_zh") or build_auto_screen_flow_v2(title_zh, topic_key, screen_names))
+        if str(item).strip()
+    ]
+
+    auto_sections = build_specific_sections(slug, topic_key, title_zh, entries, screen_names)
+    controls_zh = [str(item).strip() for item in (override.get("controls_zh") or auto_sections["controls_zh"]) if str(item).strip()]
+    interaction_effects_zh = [
+        str(item).strip()
+        for item in (override.get("interaction_effects_zh") or override.get("effects_zh") or auto_sections["interaction_effects_zh"])
+        if str(item).strip()
+    ]
+    readouts_zh = [str(item).strip() for item in (override.get("readouts_zh") or auto_sections["readouts_zh"]) if str(item).strip()]
+    first_steps_zh = [str(item).strip() for item in (override.get("first_steps_zh") or auto_sections["first_steps_zh"]) if str(item).strip()]
+    terms_zh = [str(item).strip() for item in (override.get("terms_zh") or auto_sections["terms_zh"]) if str(item).strip()]
+
+    hidden_tutor_prompt_zh = str(
+        override.get("hidden_tutor_prompt_zh")
+        or build_hidden_tutor_prompt(
+            title_zh=title_zh,
+            topic_label_zh=topic_label_zh,
+            intro_zh=intro_zh,
+            layout_zh=layout_zh,
+            screen_flow_zh=screen_flow_zh,
+            controls_zh=controls_zh,
+            interaction_effects_zh=interaction_effects_zh,
+            readouts_zh=readouts_zh,
+            first_steps_zh=first_steps_zh,
+            terms_zh=terms_zh,
+        )
+    ).strip()
+
+    needs_manual_review = bool(
+        override.get(
+            "needs_manual_review",
+            len(entries) < 8 or len(screen_flow_zh) < 2 or len(controls_zh) < 2 or len(first_steps_zh) < 2,
+        )
+    )
+
+    return {
+        "layout_zh": layout_zh,
+        "screen_flow_zh": screen_flow_zh,
+        "controls_zh": controls_zh,
+        "effects_zh": interaction_effects_zh,
+        "interaction_effects_zh": interaction_effects_zh,
+        "readouts_zh": readouts_zh,
+        "first_steps_zh": first_steps_zh,
+        "terms_zh": terms_zh,
+        "interface_guidance_zh": [*first_steps_zh[:2], *controls_zh[:2], *interaction_effects_zh[:2]],
+        "hidden_tutor_prompt_zh": hidden_tutor_prompt_zh,
+        "ui_profile_version": UI_PROFILE_VERSION,
+        "needs_manual_review": needs_manual_review,
+    }
+
+
 class PhetCatalogService:
     def __init__(self, cache_path: Path, *, max_age_seconds: int = DEFAULT_CACHE_MAX_AGE_SECONDS):
         self.cache_path = cache_path
@@ -1199,7 +1740,9 @@ class PhetCatalogService:
                     and isinstance(sim.get("screen_flow_zh"), list)
                     and isinstance(sim.get("controls_zh"), list)
                     and isinstance(sim.get("effects_zh"), list)
+                    and isinstance(sim.get("interaction_effects_zh"), list)
                     and isinstance(sim.get("readouts_zh"), list)
+                    and isinstance(sim.get("first_steps_zh"), list)
                     and isinstance(sim.get("terms_zh"), list)
                     and isinstance(sim.get("hidden_tutor_prompt_zh"), str)
                     and isinstance(sim.get("layout_zh"), str)

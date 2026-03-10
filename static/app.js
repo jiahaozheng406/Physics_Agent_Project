@@ -928,7 +928,10 @@
       els.phetIntroText.textContent = sim.intro_zh || "该实验当前缺少详细概述，建议先进入仿真界面识别变量、读数与现象，再结合规律提出问题。";
     }
     if (els.phetObservationList) {
-      renderTextBlocks(els.phetObservationList, sim.observation_points || []);
+      const observationBlocks = [];
+      (sim.observation_points || []).forEach((item) => observationBlocks.push(item));
+      (sim.readouts_zh || []).slice(0, 2).forEach((item) => observationBlocks.push(item));
+      renderTextBlocks(els.phetObservationList, observationBlocks);
     }
     if (els.phetQuestionHintList) {
       els.phetQuestionHintList.innerHTML = (sim.suggested_questions || [])
@@ -942,11 +945,7 @@
         .join("");
     }
     if (els.phetInterfaceGuidanceList) {
-      const guidanceBlocks = [];
-      if (sim.layout_zh) guidanceBlocks.push(sim.layout_zh);
-      (sim.screen_flow_zh || []).forEach((item) => guidanceBlocks.push(item));
-      (sim.controls_zh || []).slice(0, 4).forEach((item) => guidanceBlocks.push(item));
-      renderTextBlocks(els.phetInterfaceGuidanceList, guidanceBlocks);
+      renderGuidanceSections(els.phetInterfaceGuidanceList, sim);
     }
     if (els.phetQuestionInput) {
       els.phetQuestionInput.placeholder = `围绕“${sim.title_zh || sim.title_en || sim.slug}”继续提出分析问题`;
@@ -984,6 +983,50 @@
       .map((item) => String(item || "").trim())
       .filter(Boolean);
     container.innerHTML = blocks.map((item) => `<div class="phet-text-block">${escapeHtml(item)}</div>`).join("");
+  }
+
+  function renderGuidanceSections(container, sim) {
+    if (!container) return;
+    const sections = [
+      {
+        title: "先看哪里",
+        items: [sim.layout_zh, ...(Array.isArray(sim.screen_flow_zh) ? sim.screen_flow_zh.slice(0, 3) : [])],
+      },
+      {
+        title: "可以调什么",
+        items: Array.isArray(sim.controls_zh) ? sim.controls_zh : [],
+      },
+      {
+        title: "怎么调会发生什么",
+        items: Array.isArray(sim.interaction_effects_zh) && sim.interaction_effects_zh.length
+          ? sim.interaction_effects_zh
+          : (Array.isArray(sim.effects_zh) ? sim.effects_zh : []),
+      },
+      {
+        title: "建议先做哪一步",
+        items: Array.isArray(sim.first_steps_zh) ? sim.first_steps_zh : [],
+      },
+    ]
+      .map((section) => ({
+        ...section,
+        items: (Array.isArray(section.items) ? section.items : [])
+          .map((item) => String(item || "").trim())
+          .filter(Boolean),
+      }))
+      .filter((section) => section.items.length);
+
+    container.innerHTML = sections
+      .map(
+        (section) => `
+          <section class="phet-guidance-section">
+            <h5 class="phet-guidance-title">${escapeHtml(section.title)}</h5>
+            <div class="phet-guidance-list">
+              ${section.items.map((item) => `<div class="phet-guidance-item">${escapeHtml(item)}</div>`).join("")}
+            </div>
+          </section>
+        `
+      )
+      .join("");
   }
 
   function stopPhetCaptureStream() {
@@ -1122,8 +1165,10 @@
         layout_zh: sim.layout_zh || "",
         screen_flow_zh: Array.isArray(sim.screen_flow_zh) ? sim.screen_flow_zh : [],
         controls_zh: Array.isArray(sim.controls_zh) ? sim.controls_zh : [],
+        interaction_effects_zh: Array.isArray(sim.interaction_effects_zh) ? sim.interaction_effects_zh : [],
         effects_zh: Array.isArray(sim.effects_zh) ? sim.effects_zh : [],
         readouts_zh: Array.isArray(sim.readouts_zh) ? sim.readouts_zh : [],
+        first_steps_zh: Array.isArray(sim.first_steps_zh) ? sim.first_steps_zh : [],
         terms_zh: Array.isArray(sim.terms_zh) ? sim.terms_zh : [],
         hidden_tutor_prompt_zh: sim.hidden_tutor_prompt_zh || "",
         ui_profile_version: sim.ui_profile_version || "",

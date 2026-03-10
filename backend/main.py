@@ -102,7 +102,9 @@ class ExternalLabContext(BaseModel):
     screen_flow_zh: list[str] = Field(default_factory=list)
     controls_zh: list[str] = Field(default_factory=list)
     effects_zh: list[str] = Field(default_factory=list)
+    interaction_effects_zh: list[str] = Field(default_factory=list)
     readouts_zh: list[str] = Field(default_factory=list)
+    first_steps_zh: list[str] = Field(default_factory=list)
     terms_zh: list[str] = Field(default_factory=list)
     hidden_tutor_prompt_zh: str = ""
     ui_profile_version: str = ""
@@ -194,8 +196,13 @@ def build_external_lab_context_prompt(context: dict[str, Any] | None) -> str:
     layout = str(context.get("layout_zh") or "").strip()
     interface_guidance = [str(item).strip() for item in (context.get("interface_guidance_zh") or []) if str(item).strip()]
     screen_flow = [str(item).strip() for item in (context.get("screen_flow_zh") or []) if str(item).strip()]
+    first_steps = [str(item).strip() for item in (context.get("first_steps_zh") or []) if str(item).strip()]
     controls = [str(item).strip() for item in (context.get("controls_zh") or []) if str(item).strip()]
-    effects = [str(item).strip() for item in (context.get("effects_zh") or []) if str(item).strip()]
+    effects = [
+        str(item).strip()
+        for item in ((context.get("interaction_effects_zh") or []) or (context.get("effects_zh") or []))
+        if str(item).strip()
+    ]
     readouts = [str(item).strip() for item in (context.get("readouts_zh") or []) if str(item).strip()]
     terms = [str(item).strip() for item in (context.get("terms_zh") or []) if str(item).strip()]
     sim_url = str(context.get("sim_url") or "").strip()
@@ -213,12 +220,14 @@ def build_external_lab_context_prompt(context: dict[str, Any] | None) -> str:
         lines.append(f"- 界面结构：{layout}")
     if screen_flow:
         lines.append(f"- 页面流转：{'；'.join(screen_flow[:4])}")
+    if first_steps:
+        lines.append(f"- 建议先做哪一步：{'；'.join(first_steps[:4])}")
     if controls:
-        lines.append(f"- 关键控件：{'；'.join(controls[:6])}")
+        lines.append(f"- 可以调什么：{'；'.join(controls[:6])}")
     if readouts:
-        lines.append(f"- 关键读数：{'；'.join(readouts[:4])}")
+        lines.append(f"- 关键读数：{'；'.join(readouts[:5])}")
     if effects:
-        lines.append(f"- 典型变化：{'；'.join(effects[:4])}")
+        lines.append(f"- 怎么调会发生什么：{'；'.join(effects[:5])}")
     if terms:
         lines.append(f"- 界面术语：{'；'.join(terms[:5])}")
     if interface_guidance:
@@ -228,7 +237,8 @@ def build_external_lab_context_prompt(context: dict[str, Any] | None) -> str:
     hidden_prompt = str(context.get("hidden_tutor_prompt_zh") or "").strip()
     if hidden_prompt:
         lines.append(hidden_prompt)
-    lines.append("回答时请明确当前应先看哪个区域、先调哪个参数、哪些读数最值得解释；如果证据不足，要指出需要补充的界面状态。")
+    lines.append("回答顺序必须是：先定位当前页面和控件，再解释当前参数、读数和现象，最后再说明物理原理。")
+    lines.append("如果问题没有说清当前在哪个页面、改了哪个控件，应优先根据截图判断；若截图仍不足，就使用当前实验的真实控件名继续追问。")
     return "\n".join(lines)
 
 
@@ -375,7 +385,7 @@ def build_lab_image_messages(
     if lab_context:
         messages.append({"role": "system", "content": lab_context})
     messages.extend(history)
-    prompt_text = message_text.strip() or "请结合当前课外仿真界面，优先识别正在显示的场景、控件状态、图像和读数，再进行物理分析。"
+    prompt_text = message_text.strip() or "请先根据当前课外仿真截图定位正在显示的页面、勾选项、滑块/数值、读数和现象，再解释它们对应的物理规律。"
     messages.append(
         {
             "role": "user",
