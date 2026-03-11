@@ -7,40 +7,47 @@
 
 ### Goal
 
-This report tracks the gap between the current Physics Agent product and a stronger, more production-grade teaching agent.
+Gap analysis between the current Physics Agent and a production-grade teaching agent.
 
 ### Current Strengths
 
-- Vertical domain focus is clear
-- Multimodal routing already exists
-- Retrieval, persistence, and streaming are already in production shape for a single-node deployment
-- Simulation-assisted tutoring is the product’s strongest differentiator
-- The extracurricular simulation workspace already goes beyond a simple embedded link list
+| Strength | Detail |
+|----------|--------|
+| Vertical focus | Physics experiment teaching, not generic chat |
+| Multimodal routing | Text / vision / audio paths all functional |
+| RAG pipeline | Chunk-based FTS5 retrieval with source citations |
+| Simulation tutoring | 64 PhET experiments with parameter-aware analysis — strongest differentiator |
+| Persistence | SQLite-backed sessions, folders, messages, documents |
+| Streaming | SSE real-time output with LaTeX rendering |
 
-### Main Gaps Versus a Top-Tier Agent
+### Main Gaps
 
-1. Prompt management is still code-embedded
-2. Tool use is mostly orchestrated by frontend state and backend branching, not by a more formal planning layer
-3. Simulation expertise is partly generated and still needs deeper manual curation
-4. Test coverage and observability lag behind feature complexity
-5. Runtime artifacts still need stricter source/runtime separation
+| # | Gap | Impact |
+|---|-----|--------|
+| 1 | Prompt embedded in code | Hard to iterate, version, or A/B test prompts |
+| 2 | No formal planning layer | Tool orchestration relies on frontend state + backend branching |
+| 3 | Partial simulation curation | Some UI profiles are auto-generated, not manually verified |
+| 4 | Light test coverage | Feature complexity outpaces automated testing |
+| 5 | Monolithic frontend | 4688 lines in single file limits maintainability |
 
 ### Highest-Value Next Steps
 
-1. Move the active prompt out of code and version it as a managed asset
-2. Add a stronger evaluation set for document QA, simulation QA, image QA, and audio QA
-3. Keep improving per-simulation UI profiles and hidden tutoring prompts
-4. Modularize the frontend state around chat, uploads, projects, and extracurricular simulations
-5. Add better operational logging and failure diagnostics for DashScope calls
+1. **Externalize prompt** — move system prompt to a versioned config file
+2. **Build evaluation sets** — document QA, simulation QA, image QA, audio QA test cases
+3. **Curate simulation profiles** — refine experiments marked `needs_manual_review`
+4. **Modularize frontend** — split `app.js` by concern (chat, upload, sessions, simulations)
+5. **Add observability** — structured logging for DashScope calls, latency, failures
 
 ### Strategic Position
 
-The project is already differentiated enough to be more than a generic chatbot demo. The next competitive jump will not come from more surface features alone. It will come from:
+The project is already differentiated beyond a chatbot demo. The next competitive jump comes from:
 
-- tighter prompt and context management
-- higher reliability
-- stronger simulation-grounded tutoring behavior
-- better testable engineering boundaries
+- Tighter prompt and context management
+- Higher reliability and testability
+- Stronger simulation-grounded tutoring
+- Cleaner engineering boundaries
+
+Not from adding more surface features.
 
 ---
 
@@ -48,37 +55,44 @@ The project is already differentiated enough to be more than a generic chatbot d
 
 ### 报告目标
 
-这份报告用于追踪当前 Physics Agent 与更强、更成熟教学智能体之间的能力差距。
+分析当前 Physics Agent 与更成熟教学智能体之间的差距。
 
 ### 当前优势
 
-- 垂直领域定位明确
-- 多模态路由已经具备
-- 在单机部署前提下，检索、持久化、流式返回已经进入可用状态
-- 仿真辅助教学是当前产品最强的差异化能力
-- 课外实验工作区已经不只是简单嵌链接
+| 优势 | 细节 |
+|------|------|
+| 垂直定位 | 聚焦物理实验教学，非通用聊天 |
+| 多模态路由 | 文本 / 视觉 / 音频三条通路均可用 |
+| RAG 管线 | 基于 FTS5 的分块检索 + 来源引用 |
+| 仿真教学 | 64 个 PhET 实验，参数感知分析 — 最强差异化能力 |
+| 持久化 | SQLite 存储会话、文件夹、消息、文档 |
+| 流式输出 | SSE 实时返回 + LaTeX 渲染 |
 
-### 与顶级智能体相比的主要差距
+### 主要差距
 
-1. 提示词仍然写在代码里，没有独立管理
-2. 工具使用更多依赖前端状态和后端分支，还不是更正式的规划层
-3. 仿真知识部分已经很强，但仍有一部分依赖自动生成，需要更深的人工精修
-4. 测试覆盖和可观测性跟不上当前功能复杂度
-5. 运行时产物与源码之间还需要更严格的边界
+| # | 差距 | 影响 |
+|---|------|------|
+| 1 | 提示词写在代码里 | 难以迭代、版本管理或 A/B 测试 |
+| 2 | 缺少正式规划层 | 工具编排依赖前端状态和后端分支 |
+| 3 | 部分仿真未人工精修 | 界面画像依赖自动生成，准确度不一 |
+| 4 | 测试覆盖不足 | 功能复杂度高于自动化测试覆盖 |
+| 5 | 前端单文件过大 | 4688 行限制可维护性 |
 
 ### 最值得优先投入的下一步
 
-1. 把当前生效的提示词从代码中抽离并版本化管理
-2. 为文档问答、仿真问答、图像问答、音频问答建立更强的评测集
-3. 继续强化每个实验的界面画像和隐藏教学提示词
-4. 将前端状态按聊天、上传、项目、课外实验继续模块化
-5. 为 DashScope 调用补更好的日志和失败诊断
+1. **抽离提示词** — 移到版本化配置文件
+2. **建立评测集** — 文档问答、仿真问答、图像问答、音频问答测试用例
+3. **精修仿真画像** — 处理 `needs_manual_review` 标记的实验
+4. **前端模块化** — 按职责拆分 `app.js`（聊天、上传、会话、仿真）
+5. **增加可观测性** — DashScope 调用日志、延迟、失败诊断
 
 ### 战略判断
 
-这个项目已经足够有差异化，早就不是普通聊天框 demo。下一次真正的跃升，不会主要来自再堆表层功能，而是来自：
+项目已经有足够差异化，不再是聊天框 demo。下一次跃升来自：
 
 - 更紧的提示词与上下文管理
-- 更高的稳定性
+- 更高的稳定性与可测试性
 - 更强的仿真场景教学能力
-- 更可测试、更清晰的工程边界
+- 更清晰的工程边界
+
+而非堆更多表层功能。

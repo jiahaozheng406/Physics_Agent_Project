@@ -8,6 +8,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+[![DashScope](https://img.shields.io/badge/DashScope-Qwen-orange.svg)](https://dashscope.aliyun.com/)
+[![PhET](https://img.shields.io/badge/PhET-64%20Simulations-red.svg)](https://phet.colorado.edu/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](#english) | [简体中文](#简体中文)
@@ -18,509 +20,338 @@
 
 ## English
 
-### 📖 Overview
+### Overview
 
-Physics Agent Project is an **advanced multimodal teaching agent** designed specifically for physics experiment education. Unlike generic chatbots, it deeply integrates:
+Physics Agent Project is a **multimodal teaching agent** for physics experiment education. It combines domain-specific RAG retrieval, image/audio understanding, 64 PhET interactive simulations, and heuristic teaching strategies into a single web application.
 
-- **Domain Knowledge Enhancement**: RAG (Retrieval-Augmented Generation) with document upload and precise citation
-- **Multimodal Understanding**: Text, image, and audio input with experiment apparatus recognition
-- **Simulation Integration**: Built-in physics simulations + 64 PhET interactive experiments
-- **Heuristic Teaching**: Guided questioning instead of direct answers, fostering scientific thinking
-- **Traceability Design**: Source attribution, uncertainty declaration, anti-hallucination mechanisms
+**What makes it different from a generic chatbot:**
 
-### 🎯 Core Features
+- Answers are grounded in user-uploaded documents with `[Source N]` citations
+- Never fabricates physical constants or experimental data
+- Guides students with questions instead of giving direct answers
+- Connects to real PhET simulations with parameter-aware analysis
 
-| Feature | Description |
-|---------|-------------|
-| **Vertical Domain Focus** | Specialized in physics experiment teaching with domain-specific prompts |
-| **Simulation Workspace** | Integrated PhET simulations with parameter-driven analysis |
-| **RAG Knowledge Injection** | Automatic document chunking, retrieval, and context injection |
-| **Multimodal Input** | Text Q&A, image recognition, audio input (experimental) |
-| **Streaming Interaction** | SSE real-time streaming with LaTeX formula rendering |
-| **Session Persistence** | SQLite-backed conversation history and project management |
-| **Modern UI** | Dark glassmorphism interface with drag-and-drop upload |
+### Tech Stack
 
-### 🏗️ Architecture
+| Layer | Technology |
+|-------|-----------|
+| Backend | FastAPI, SQLite (WAL + FTS5), Python 3.10+ |
+| AI Models | DashScope API — `qwen-plus` (text), `qwen-vl-max` (vision), `qwen-audio-turbo` (audio) |
+| Frontend | Vanilla JS, Tailwind CSS, KaTeX (LaTeX), SSE streaming |
+| Simulations | 64 PhET experiments (phet.colorado.edu) |
+| Document Processing | pdfplumber, python-docx, Pillow |
+
+### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Browser Frontend                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │   Chat   │  │  Upload  │  │Simulation│  │ History  │   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
-│       │             │             │             │          │
-│       └─────────────┴─────────────┴─────────────┘          │
-│                    │ SSE / REST API                         │
-└────────────────────┼──────────────────────────────────────┘
-                     │
-┌────────────────────┼──────────────────────────────────────┐
-│              FastAPI Backend                                │
-│  ┌─────────────────┴──────────────────────┐                │
-│  │      API Gateway (main.py)             │                │
-│  └──┬────────┬────────┬────────┬──────────┘                │
-│     │        │        │        │                            │
-│  ┌──▼──┐  ┌─▼──┐  ┌──▼──┐  ┌──▼──┐                        │
-│  │Model│  │RAG │  │Store│  │PhET │                        │
-│  │Gate │  │    │  │     │  │Cata │                        │
-│  └──┬──┘  └─┬──┘  └──┬──┘  └──┬──┘                        │
-│     │       │        │        │                            │
-└─────┼───────┼────────┼────────┼────────────────────────────┘
-      │       │        │        │
-┌─────▼───────▼────────▼────────▼────────────────────────────┐
-│              External Services                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
-│  │DashScope │  │  SQLite  │  │PhET API  │                 │
-│  │   API    │  │ Database │  │          │                 │
-│  └──────────┘  └──────────┘  └──────────┘                 │
-└─────────────────────────────────────────────────────────────┘
+Browser (HTML/JS/CSS)
+    │  SSE / REST
+    ▼
+FastAPI Backend
+    ├── API Gateway ─────── main.py
+    ├── Model Gateway ───── models.py      (DashScope routing)
+    ├── RAG Engine ──────── rag.py         (chunking + FTS5 retrieval)
+    ├── Storage Layer ───── storage.py     (SQLite persistence)
+    └── PhET Catalog ────── phet_catalog.py (64 simulations + UI profiles)
+          │
+          ▼
+External: DashScope API, SQLite DB, PhET CDN
 ```
 
-### 🚀 Quick Start
+### Quick Start
 
-#### Requirements
-
-- **Python**: 3.10 or higher
-- **OS**: Windows / macOS / Linux
-- **API Key**: DashScope API Key ([Get it here](https://dashscope.console.aliyun.com/))
-
-#### Installation
+**Requirements:** Python 3.10+, DashScope API Key ([get one here](https://dashscope.console.aliyun.com/))
 
 ```bash
-# Clone repository
 git clone https://github.com/jiahaozheng406/Physics_Agent_Project.git
 cd Physics_Agent_Project
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
 echo "DASHSCOPE_API_KEY=your_api_key_here" > .env
-```
 
-#### Run
-
-```bash
-# Method 1: Using uvicorn (recommended)
+# Start server
 uvicorn backend.main:app --reload --port 8000
-
-# Method 2: Direct execution
-python -m backend.main
 ```
 
-Open browser: http://localhost:8000
+Open http://localhost:8000 in your browser.
 
-### 💡 Feature Highlights
+### Core Features
 
-#### 1. Intelligent Dialogue System
+#### 1. Intelligent Dialogue
 
-- Physics knowledge Q&A (mechanics, thermodynamics, electromagnetism, optics)
-- Experiment principle explanations
-- Formula derivation and calculation verification
+- Physics Q&A across mechanics, thermodynamics, electromagnetism, optics
 - LaTeX formula rendering (inline `$F=ma$`, block `$$E=mc^2$$`)
-- Real-time streaming output
-
-**Example**:
-```
-User: Explain Newton's Second Law
-Agent: Newton's Second Law $F=ma$ reveals the quantitative relationship
-       between force, mass, and acceleration...
-       [Provides step-by-step derivation, experimental verification, common misconceptions]
-```
+- Real-time SSE streaming output
 
 #### 2. RAG Knowledge Enhancement
 
-**Workflow**:
-1. User uploads PDF/DOCX textbooks or lab reports
-2. System automatically chunks documents
-3. Retrieves relevant chunks when user asks questions
-4. Injects retrieval results into model context
-5. Cites sources as `[Source 1]`, `[Source 2]`
+Upload PDF/DOCX → auto chunking (1100 chars, 180 overlap) → FTS5 retrieval (top-6) → context injection → cited answers `[Source N]`
 
-**Anti-Hallucination**:
-- Prioritizes user-uploaded documents
-- Explicitly states uncertainty when evidence is insufficient
-- Never fabricates experimental data or physical constants
+**Anti-hallucination:** prioritizes uploaded docs, declares uncertainty when evidence is insufficient.
 
-#### 3. Multimodal Understanding
+#### 3. Multimodal Input
 
-**Image Recognition**:
-- Supported formats: PNG, JPG, JPEG, WebP, BMP
-- Use cases: Apparatus recognition, chart data extraction, handwritten formula recognition
-
-**Audio Input** (Experimental):
-- Supported formats: WebM, WAV, MP3, M4A, AAC, OGG
-- Limits: Max 30 seconds, 10MB
+- **Image:** PNG/JPG/WebP/BMP — apparatus recognition, chart extraction, handwritten formula OCR
+- **Audio** (experimental): WebM/WAV/MP3/M4A — max 30s, 10MB
 
 #### 4. PhET Simulation Integration
 
-**Integrated Experiments**:
-- Kinematics: Projectile motion, circular motion
-- Mechanics: Spring oscillator, collision experiments
-- Waves: Wave interference, standing waves
-- Thermodynamics: Gas properties, energy conversion
-- Electromagnetism: Electric field, magnetic field, circuits
+64 interactive experiments covering kinematics, mechanics, waves, thermodynamics, and electromagnetism. Students adjust parameters in the simulation, then click "Analyze" — the agent explains the physics based on current state.
 
-**Interaction Flow**:
-1. Select experiment from library
-2. Adjust parameters in simulation window
-3. Observe phenomena
-4. Click "Analyze Current State"
-5. Agent generates explanation based on parameters
+#### 5. Heuristic Teaching
 
-#### 5. Heuristic Teaching Strategy
+Instead of direct answers:
+- "What factors do you think affect the period?"
+- "Let's start with force analysis..."
+- "Note the difference between velocity and acceleration direction"
 
-**Instead of direct answers**:
-- Guided questioning: "What factors do you think affect the period?"
-- Step-by-step reasoning: "Let's start with force analysis..."
-- Common misconception alerts: "Note the difference between velocity and acceleration direction"
-- Experimental verification suggestions: "You can verify this by changing the mass"
+### API Endpoints
 
-### 📂 Project Structure
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Serve frontend |
+| POST | `/api/chat` | Chat with SSE streaming |
+| POST | `/api/upload` | Upload document/image/audio |
+| GET | `/api/sessions` | List all sessions |
+| POST | `/api/sessions` | Create session |
+| PATCH | `/api/sessions/{id}` | Rename session |
+| DELETE | `/api/sessions/{id}` | Delete session |
+| POST | `/api/folders` | Create folder |
+| PATCH | `/api/folders/{id}` | Rename folder |
+| DELETE | `/api/folders/{id}` | Delete folder |
+| GET | `/api/phet/catalog` | Get simulation list |
+| DELETE | `/api/clear-docs` | Clear knowledge base |
+| POST | `/api/clear-history` | Clear chat history |
+
+### Project Structure
 
 ```
 Physics_Agent_Project/
-├── backend/                    # Backend core modules
-│   ├── main.py                # FastAPI main entry (~800 lines)
-│   ├── models.py              # Model gateway (~200 lines)
-│   ├── rag.py                 # RAG retrieval logic (~150 lines)
-│   ├── storage.py             # SQLite persistence (~600 lines)
-│   └── phet_catalog.py        # PhET catalog service (~700 lines)
-├── static/                     # Frontend resources
-│   ├── index.html             # SPA entry point
-│   ├── app.js                 # Frontend core logic (~4000 lines)
-│   ├── style.css              # Glassmorphism styles (~1200 lines)
-│   ├── css/                   # Additional styles
-│   └── js/                    # Additional scripts
-├── data/                       # Data storage
-│   ├── sessions.db            # SQLite session database
-│   └── phet_catalog.json      # PhET experiment cache
-├── uploads/                    # User uploads
-│   ├── docs/                  # Documents (PDF/DOCX)
-│   ├── images/                # Images
-│   └── audio/                 # Audio files
-├── requirements.txt            # Python dependencies
-├── .env                        # Environment variables
-├── .gitignore                  # Git ignore rules
-└── README.md                   # Project documentation
+├── backend/
+│   ├── main.py               # API gateway & routes (989 lines)
+│   ├── models.py             # DashScope model routing (121 lines)
+│   ├── rag.py                # RAG chunking + retrieval (71 lines)
+│   ├── storage.py            # SQLite persistence (726 lines)
+│   ├── phet_catalog.py       # PhET catalog & teaching prompts (3033 lines)
+│   └── phet_ui_overrides.py  # Simulation UI profiles (2568 lines)
+├── static/
+│   ├── index.html            # SPA entry (295 lines)
+│   ├── app.js                # Frontend logic (4688 lines)
+│   └── style.css             # Glassmorphism styles (2457 lines)
+├── data/                      # Runtime data (gitignored)
+├── uploads/                   # User uploads (gitignored)
+├── requirements.txt
+├── .env                       # API key (gitignored)
+└── README.md
 ```
 
-### 🔧 API Endpoints
+### Database Schema
 
-| Method | Path | Function | Request | Response |
-|--------|------|----------|---------|----------|
-| GET | `/` | Serve frontend | - | HTML |
-| POST | `/api/chat` | Send message | `{message, session_id, images?, audio?}` | SSE stream |
-| POST | `/api/upload` | Upload file | `FormData(file)` | `{file_id, filename}` |
-| DELETE | `/api/clear-docs` | Clear knowledge base | `{session_id}` | `{success}` |
-| POST | `/api/clear-history` | Clear chat history | `{session_id}` | `{success}` |
-| GET | `/api/sessions` | List sessions | - | `[{id, title, ...}]` |
-| GET | `/api/phet/catalog` | Get experiment list | `?locale=zh_CN` | `[{slug, title, ...}]` |
+| Table | Purpose |
+|-------|---------|
+| `session_folders` | Project/folder organization |
+| `sessions` | Chat sessions with titles |
+| `messages` | Chat messages (role, content, model, status) |
+| `documents` | Uploaded document metadata |
+| `document_chunks` | Chunked content for RAG retrieval |
 
-### 🎯 Agent Design Philosophy
+SQLite with WAL mode, foreign key constraints, indexed queries.
 
-1. **Vertical Domain Specialization**: Focus on physics teaching, not general chat
-2. **Traceability Design**: Source attribution, uncertainty declaration
-3. **Anti-Hallucination**: Never fabricate constants or experimental data
-4. **Heuristic Teaching**: Guided questioning instead of direct answers
-5. **Multimodal Fusion**: Text mode with RAG, vision mode isolated
+### Roadmap
 
-### 🚧 Roadmap
+**Completed** ✅ FastAPI backend, dark glassmorphism UI, drag-and-drop upload, Markdown + LaTeX rendering, SSE streaming, RAG knowledge injection, SQLite session persistence, PhET simulation integration (64 experiments)
 
-**Completed** ✅
-- [x] FastAPI backend architecture
-- [x] Dark glassmorphism UI
-- [x] Drag-and-drop upload
-- [x] Markdown + LaTeX rendering
-- [x] SSE streaming output
-- [x] RAG knowledge injection
-- [x] SQLite session persistence
-- [x] PhET simulation integration
-
-**Short-term (1-2 weeks)**:
-- [ ] Vector database integration (Chroma/Milvus)
-- [ ] Embedding model (text-embedding-v2)
-- [ ] Frontend code modularization
-- [ ] Unit tests
-
-**Mid-term (1-2 months)**:
-- [ ] Student learning progress tracking
-- [ ] Experiment configuration templating
-- [ ] Multi-turn context optimization
+**Next:**
+- [ ] Vector database (Chroma/Milvus) + embedding model
+- [ ] Frontend modularization
 - [ ] Docker containerization
-
-**Long-term (3-6 months)**:
-- [ ] Multi-tenant support (teacher/student roles)
+- [ ] Student progress tracking
 - [ ] Automated lab report generation
-- [ ] Knowledge graph integration
-- [ ] Mobile adaptation
 
-### 📜 License
+### License
 
 MIT License
 
-### 🙏 Acknowledgments
+### Acknowledgments
 
-- [Alibaba Cloud DashScope](https://dashscope.aliyun.com/) - LLM API
-- [PhET Interactive Simulations](https://phet.colorado.edu/) - Physics simulations
-- [FastAPI](https://fastapi.tiangolo.com/) - Web framework
-- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [Alibaba Cloud DashScope](https://dashscope.aliyun.com/) — LLM API
+- [PhET Interactive Simulations](https://phet.colorado.edu/) — Physics simulations
+- [FastAPI](https://fastapi.tiangolo.com/) — Web framework
+- [Tailwind CSS](https://tailwindcss.com/) — CSS framework
+- [KaTeX](https://katex.org/) — LaTeX rendering
 
 ---
 
 ## 简体中文
 
-### 📖 项目概述
+### 项目概述
 
-Physics Agent Project 是一个专为物理实验教学设计的**高级多模态智能体系统**，不同于通用聊天机器人，它深度整合了：
+Physics Agent Project 是一个专为物理实验教学设计的**多模态智能体系统**，将领域 RAG 检索、图像/音频理解、64 个 PhET 交互式仿真和启发式教学策略整合在一个 Web 应用中。
 
-- **领域知识增强**：RAG 检索增强生成，支持教材文档上传与精准引用
-- **多模态理解**：文本、图像、音频三模态输入，实验装置识别与图表分析
-- **实验仿真联动**：内置物理仿真 + 64 个 PhET 交互式实验
-- **启发式教学**：非直接给答案，引导式提问，培养科学思维
-- **可追溯性设计**：知识来源标注、不确定性声明、反幻觉机制
+**与通用聊天机器人的区别：**
 
-### 🎯 核心特性
+- 回答基于用户上传文档，使用 `[Source N]` 标注来源
+- 绝不编造物理常数或实验数据
+- 引导式提问，培养科学思维，而非直接给答案
+- 连接真实 PhET 仿真，基于参数状态进行分析
 
-| 特性 | 说明 |
+### 技术栈
+
+| 层级 | 技术 |
 |------|------|
-| **垂直场景专精** | 专注物理实验教学，内置物理学科提示词与教学策略 |
-| **实验仿真工作区** | 集成 PhET 仿真实验，支持参数联动与实时解释 |
-| **RAG 知识注入** | 文档上传后自动分块、检索、注入上下文 |
-| **多模态输入** | 支持文本问答、图片识别、音频输入（实验性） |
-| **流式交互** | SSE 实时流式输出，LaTeX 公式渲染 |
-| **会话持久化** | SQLite 存储会话历史，支持多轮对话上下文管理 |
-| **现代化 UI** | 深色毛玻璃界面，拖拽上传，动效流畅 |
+| 后端 | FastAPI, SQLite (WAL + FTS5), Python 3.10+ |
+| AI 模型 | DashScope API — `qwen-plus`(文本), `qwen-vl-max`(视觉), `qwen-audio-turbo`(音频) |
+| 前端 | 原生 JS, Tailwind CSS, KaTeX (LaTeX 渲染), SSE 流式 |
+| 仿真 | 64 个 PhET 实验 (phet.colorado.edu) |
+| 文档处理 | pdfplumber, python-docx, Pillow |
 
-### 🏗️ 技术架构
+### 技术架构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        浏览器前端                            │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ 对话界面 │  │ 文件上传 │  │ 实验仿真 │  │ 历史记录 │   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
-│       │             │             │             │          │
-│       └─────────────┴─────────────┴─────────────┘          │
-│                    │ SSE / REST API                         │
-└────────────────────┼──────────────────────────────────────┘
-                     │
-┌────────────────────┼──────────────────────────────────────┐
-│                FastAPI 后端                                 │
-│  ┌─────────────────┴──────────────────────┐                │
-│  │      API 网关 (main.py)                │                │
-│  └──┬────────┬────────┬────────┬──────────┘                │
-│     │        │        │        │                            │
-│  ┌──▼──┐  ┌─▼──┐  ┌──▼──┐  ┌──▼──┐                        │
-│  │模型 │  │RAG │  │存储 │  │实验 │                        │
-│  │网关 │  │引擎│  │层  │  │目录│                        │
-│  └──┬──┘  └─┬──┘  └──┬──┘  └──┬──┘                        │
-│     │       │        │        │                            │
-└─────┼───────┼────────┼────────┼────────────────────────────┘
-      │       │        │        │
-┌─────▼───────▼────────▼────────▼────────────────────────────┐
-│                    外部服务层                               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
-│  │DashScope │  │  SQLite  │  │PhET API  │                 │
-│  │   API    │  │ Database │  │          │                 │
-│  └──────────┘  └──────────┘  └──────────┘                 │
-└─────────────────────────────────────────────────────────────┘
+浏览器 (HTML/JS/CSS)
+    │  SSE / REST
+    ▼
+FastAPI 后端
+    ├── API 网关 ─────── main.py
+    ├── 模型网关 ─────── models.py      (DashScope 路由)
+    ├── RAG 引擎 ─────── rag.py         (文档分块 + FTS5 检索)
+    ├── 存储层 ───────── storage.py     (SQLite 持久化)
+    └── 实验目录 ─────── phet_catalog.py (64 个仿真 + UI 画像)
+          │
+          ▼
+外部服务: DashScope API, SQLite 数据库, PhET CDN
 ```
 
-### 🚀 快速开始
+### 快速开始
 
-#### 环境要求
-
-- **Python**：3.10 或更高版本
-- **操作系统**：Windows / macOS / Linux
-- **API Key**：阿里云百炼 DashScope API Key（[获取地址](https://dashscope.console.aliyun.com/)）
-
-#### 安装步骤
+**环境要求：** Python 3.10+，阿里云百炼 DashScope API Key（[获取地址](https://dashscope.console.aliyun.com/)）
 
 ```bash
-# 克隆项目
 git clone https://github.com/jiahaozheng406/Physics_Agent_Project.git
 cd Physics_Agent_Project
 
-# 安装依赖
 pip install -r requirements.txt
 
-# 配置环境变量
 echo "DASHSCOPE_API_KEY=your_api_key_here" > .env
-```
 
-#### 启动服务
-
-```bash
-# 方式一：使用 uvicorn（推荐）
+# 启动服务
 uvicorn backend.main:app --reload --port 8000
-
-# 方式二：直接运行
-python -m backend.main
 ```
 
-打开浏览器访问：http://localhost:8000
+浏览器访问 http://localhost:8000
 
-### 💡 功能亮点
+### 核心特性
 
 #### 1. 智能对话系统
 
-- 物理知识问答（力学、热学、电磁学、光学等）
-- 实验原理深度解释
-- 公式推导与计算验证
+- 覆盖力学、热学、电磁学、光学等物理知识问答
 - LaTeX 公式渲染（行内 `$F=ma$`，块级 `$$E=mc^2$$`）
-- 实时流式输出
-
-**示例对话**：
-```
-用户：解释牛顿第二定律的物理意义
-Agent：牛顿第二定律 $F=ma$ 揭示了力、质量和加速度之间的定量关系...
-      [提供分步推导、实验验证建议、常见误区]
-```
+- SSE 实时流式输出
 
 #### 2. RAG 知识增强
 
-**工作流程**：
-1. 用户上传 PDF/DOCX 教材或实验报告
-2. 系统自动文档分块（chunk）
-3. 用户提问时检索相关文档片段
-4. 将检索结果注入模型上下文
-5. 回答时标注来源 `[Source 1]`、`[Source 2]`
+上传 PDF/DOCX → 自动分块（1100 字符，180 重叠）→ FTS5 检索（top-6）→ 上下文注入 → 带引用回答 `[Source N]`
 
-**反幻觉机制**：
-- 优先引用用户上传文档
-- 证据不足时明确声明不确定性
-- 不编造实验数据或物理常数
+**反幻觉机制：** 优先引用上传文档，证据不足时明确声明不确定性。
 
-#### 3. 多模态理解
+#### 3. 多模态输入
 
-**图像识别**：
-- 支持格式：PNG、JPG、JPEG、WebP、BMP
-- 应用场景：实验装置识别、图表数据提取、手写公式识别
-
-**音频输入**（实验性）：
-- 支持格式：WebM、WAV、MP3、M4A、AAC、OGG
-- 限制：最大 30 秒，10MB
+- **图像：** PNG/JPG/WebP/BMP — 实验装置识别、图表提取、手写公式识别
+- **音频**（实验性）：WebM/WAV/MP3/M4A — 最大 30 秒，10MB
 
 #### 4. PhET 实验仿真联动
 
-**集成实验库**：
-- 运动学：斜抛运动、圆周运动
-- 力学：弹簧振子、碰撞实验
-- 波动：波的干涉、驻波
-- 热学：气体性质、能量转换
-- 电磁学：电场、磁场、电路
-
-**交互流程**：
-1. 从实验库选择实验
-2. 在仿真窗口调节参数（质量、速度、角度等）
-3. 观察实验现象
-4. 点击"分析当前状态"
-5. Agent 基于参数生成解释
+集成 64 个交互式实验，覆盖运动学、力学、波动、热学和电磁学。学生在仿真中调节参数，点击"分析当前状态"，Agent 根据实时参数生成物理解释。
 
 #### 5. 启发式教学策略
 
-**非直接给答案**，而是：
-- 引导式提问："你认为影响周期的因素有哪些？"
-- 分步推理："我们先从受力分析开始..."
-- 常见误区提醒："注意区分速度和加速度的方向"
-- 实验验证建议："可以通过改变质量来验证这个结论"
+不直接给答案，而是：
+- "你认为影响周期的因素有哪些？"
+- "我们先从受力分析开始..."
+- "注意区分速度和加速度的方向"
 
-### 📂 项目结构
+### API 端点
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| GET | `/` | 返回前端页面 |
+| POST | `/api/chat` | SSE 流式对话 |
+| POST | `/api/upload` | 上传文档/图片/音频 |
+| GET | `/api/sessions` | 获取会话列表 |
+| POST | `/api/sessions` | 创建会话 |
+| PATCH | `/api/sessions/{id}` | 重命名会话 |
+| DELETE | `/api/sessions/{id}` | 删除会话 |
+| POST | `/api/folders` | 创建文件夹 |
+| PATCH | `/api/folders/{id}` | 重命名文件夹 |
+| DELETE | `/api/folders/{id}` | 删除文件夹 |
+| GET | `/api/phet/catalog` | 获取实验列表 |
+| DELETE | `/api/clear-docs` | 清空知识库 |
+| POST | `/api/clear-history` | 清空对话历史 |
+
+### 项目结构
 
 ```
 Physics_Agent_Project/
-├── backend/                    # 后端核心模块
-│   ├── main.py                # FastAPI 主服务入口（~800 行）
-│   ├── models.py              # 模型网关封装（~200 行）
-│   ├── rag.py                 # RAG 检索增强逻辑（~150 行）
-│   ├── storage.py             # SQLite 会话持久化（~600 行）
-│   └── phet_catalog.py        # PhET 实验库服务（~700 行）
-├── static/                     # 前端资源
-│   ├── index.html             # 单页应用入口
-│   ├── app.js                 # 前端核心逻辑（~4000 行）
-│   ├── style.css              # 毛玻璃样式（~1200 行）
-│   ├── css/                   # 额外样式模块
-│   └── js/                    # 额外脚本模块
-├── data/                       # 数据存储
-│   ├── sessions.db            # SQLite 会话数据库
-│   └── phet_catalog.json      # PhET 实验库缓存
-├── uploads/                    # 用户上传文件
-│   ├── docs/                  # 文档文件（PDF/DOCX）
-│   ├── images/                # 图片文件
-│   └── audio/                 # 音频文件
-├── requirements.txt            # Python 依赖
-├── .env                        # 环境变量（API Key）
-├── .gitignore                  # Git 忽略规则
-└── README.md                   # 项目说明文档
+├── backend/
+│   ├── main.py               # API 网关与路由 (989 行)
+│   ├── models.py             # DashScope 模型路由 (121 行)
+│   ├── rag.py                # RAG 分块与检索 (71 行)
+│   ├── storage.py            # SQLite 持久化 (726 行)
+│   ├── phet_catalog.py       # PhET 实验目录与教学提示词 (3033 行)
+│   └── phet_ui_overrides.py  # 仿真界面画像 (2568 行)
+├── static/
+│   ├── index.html            # 单页应用入口 (295 行)
+│   ├── app.js                # 前端核心逻辑 (4688 行)
+│   └── style.css             # 毛玻璃样式 (2457 行)
+├── data/                      # 运行时数据 (已 gitignore)
+├── uploads/                   # 用户上传文件 (已 gitignore)
+├── requirements.txt
+├── .env                       # API Key (已 gitignore)
+└── README.md
 ```
 
-### 🔧 API 端点
+### 数据库设计
 
-| 方法 | 路径 | 功能 | 请求体 | 响应 |
-|------|------|------|--------|------|
-| GET | `/` | 返回前端页面 | - | HTML |
-| POST | `/api/chat` | 发送消息 | `{message, session_id, images?, audio?}` | SSE 流 |
-| POST | `/api/upload` | 上传文件 | `FormData(file)` | `{file_id, filename}` |
-| DELETE | `/api/clear-docs` | 清空知识库 | `{session_id}` | `{success}` |
-| POST | `/api/clear-history` | 清空对话历史 | `{session_id}` | `{success}` |
-| GET | `/api/sessions` | 获取会话列表 | - | `[{id, title, ...}]` |
-| GET | `/api/phet/catalog` | 获取实验列表 | `?locale=zh_CN` | `[{slug, title, ...}]` |
+| 表名 | 用途 |
+|------|------|
+| `session_folders` | 项目/文件夹组织 |
+| `sessions` | 聊天会话与标题 |
+| `messages` | 消息记录（角色、内容、模型、状态） |
+| `documents` | 上传文档元数据 |
+| `document_chunks` | 分块内容用于 RAG 检索 |
 
-### 🎯 智能体设计理念
+使用 SQLite WAL 模式，外键约束，索引查询。
 
-1. **垂直领域专精**：专注物理实验教学，非通用聊天
-2. **可追溯性设计**：知识来源标注、不确定性声明
-3. **反幻觉机制**：不编造物理常数或实验数据
-4. **启发式教学**：引导式提问而非直接给答案
-5. **多模态融合**：文本模式注入 RAG，视觉模式隔离
+### 项目路线图
 
-### 🚧 项目路线图
+**已完成** ✅ FastAPI 后端架构、深色毛玻璃 UI、拖拽上传、Markdown + LaTeX 渲染、SSE 流式输出、RAG 知识库注入、SQLite 会话持久化、PhET 实验库集成（64 个实验）
 
-**已完成** ✅
-- [x] FastAPI 后端架构
-- [x] 深色毛玻璃 UI
-- [x] 拖拽上传（文档/图片/音频）
-- [x] Markdown + LaTeX 渲染
-- [x] SSE 流式输出
-- [x] RAG 知识库注入
-- [x] SQLite 会话持久化
-- [x] PhET 实验库集成
-
-**短期（1-2 周）**：
-- [ ] 引入向量数据库（Chroma/Milvus）
-- [ ] 使用嵌入模型（text-embedding-v2）
+**后续计划：**
+- [ ] 向量数据库（Chroma/Milvus）+ 嵌入模型
 - [ ] 前端代码模块化拆分
-- [ ] 添加单元测试
-
-**中期（1-2 月）**：
-- [ ] 学生学习记录与进度追踪
-- [ ] 实验配置与 Prompt 模板化
-- [ ] 多轮对话上下文优化
 - [ ] Docker 容器化部署
-
-**长期（3-6 月）**：
-- [ ] 多租户支持（教师/学生角色）
+- [ ] 学生学习进度追踪
 - [ ] 实验报告自动生成
-- [ ] 知识图谱集成
-- [ ] 移动端适配
 
-### 📜 许可证
+### 许可证
 
 MIT License
 
-### 🙏 致谢
+### 致谢
 
-- [阿里云百炼](https://dashscope.aliyun.com/) - 提供大模型 API
-- [PhET Interactive Simulations](https://phet.colorado.edu/) - 提供物理实验仿真
-- [FastAPI](https://fastapi.tiangolo.com/) - 高性能 Web 框架
-- [Tailwind CSS](https://tailwindcss.com/) - 实用优先的 CSS 框架
+- [阿里云百炼](https://dashscope.aliyun.com/) — 大模型 API
+- [PhET Interactive Simulations](https://phet.colorado.edu/) — 物理实验仿真
+- [FastAPI](https://fastapi.tiangolo.com/) — Web 框架
+- [Tailwind CSS](https://tailwindcss.com/) — CSS 框架
+- [KaTeX](https://katex.org/) — LaTeX 渲染
 
 ---
 
 <div align="center">
 
-**如果这个项目对你有帮助，欢迎 Star ⭐**
+**If this project helps you, give it a Star ⭐**
 
-[GitHub 仓库](https://github.com/jiahaozheng406/Physics_Agent_Project)
+[GitHub Repository](https://github.com/jiahaozheng406/Physics_Agent_Project)
 
 </div>
