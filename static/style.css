@@ -2104,6 +2104,26 @@ body::before {
   overflow-y: hidden;
 }
 
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background: var(--primary-2, #6c8ff5);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  animation: streamCursorBlink 0.8s steps(2) infinite;
+}
+
+@keyframes streamCursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.streaming-active {
+  min-height: 1.2em;
+}
+
 .hidden {
   display: none !important;
 }

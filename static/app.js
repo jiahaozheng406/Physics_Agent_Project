@@ -3957,12 +3957,11 @@
 
     const bubble = document.createElement("div");
     bubble.className = "bubble agent";
-    bubble.innerHTML = `
-      <div class="streaming-text"></div>
-      <div class="markdown-body" style="display:none"></div>
-    `;
+    bubble.innerHTML = '<div class="markdown-body streaming-active"><span class="streaming-cursor"></span></div>';
 
     row.appendChild(bubble);
+    row._streamText = "";
+    row._renderRAF = null;
     els.chatMessages.appendChild(row);
 
     if (modelName && els.modelBadge) {
@@ -3974,20 +3973,43 @@
   }
 
   function updateStreamingAgentMessage(row, text) {
-    const textEl = row?.querySelector(".streaming-text");
-    if (!textEl) return;
-    textEl.textContent = text;
-    scrollChatToBottom();
+    if (!row) return;
+    row._streamText = text;
+    if (row._renderRAF) return;
+    row._renderRAF = requestAnimationFrame(() => {
+      row._renderRAF = null;
+      const el = row.querySelector(".markdown-body");
+      if (!el) return;
+      el.innerHTML = renderContent(row._streamText);
+      _appendStreamCursor(el);
+      scrollChatToBottom();
+    });
+  }
+
+  function _appendStreamCursor(container) {
+    let target = container;
+    while (target.lastElementChild) {
+      const last = target.lastElementChild;
+      const tag = (last.tagName || "").toLowerCase();
+      if (["br", "hr", "img", "svg", "canvas", "table"].includes(tag)) break;
+      if (last.classList.contains("katex-display") || last.classList.contains("katex")) break;
+      target = last;
+    }
+    const cursor = document.createElement("span");
+    cursor.className = "streaming-cursor";
+    target.appendChild(cursor);
   }
 
   function finalizeStreamingAgentMessage(row, text) {
-    const textEl = row?.querySelector(".streaming-text");
-    const contentEl = row?.querySelector(".markdown-body");
+    if (!row) return;
+    if (row._renderRAF) {
+      cancelAnimationFrame(row._renderRAF);
+      row._renderRAF = null;
+    }
+    const contentEl = row.querySelector(".markdown-body");
     if (!contentEl) return;
-
+    contentEl.classList.remove("streaming-active");
     contentEl.innerHTML = renderContent(text);
-    contentEl.style.display = "block";
-    textEl?.remove();
     scrollChatToBottom();
   }
 
