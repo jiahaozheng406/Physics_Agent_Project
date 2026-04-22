@@ -12,9 +12,10 @@ from typing import Any
 import pdfplumber
 from docx import Document
 from dotenv import load_dotenv
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
+import httpx
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field
@@ -523,6 +524,73 @@ async def phet_catalog() -> dict[str, Any]:
         return PHET_CATALOG.get_catalog()
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# PhET reverse proxy — serve PhET simulation assets from our own origin so
+# the iframe becomes same-origin and we can capture its canvas for screenshots.
+# ---------------------------------------------------------------------------
+PHET_PROXY_BASE = "https://phet.colorado.edu"
+_phet_http_client: httpx.AsyncClient | None = None
+
+
+def _get_phet_client() -> httpx.AsyncClient:
+    global _phet_http_client
+    if _phet_http_client is None or _phet_http_client.is_closed:
+        _phet_http_client = httpx.AsyncClient(
+            base_url=PHET_PROXY_BASE,
+            follow_redirects=True,
+            timeout=30.0,
+            headers={"User-Agent": "PhysicsAgentProxy/1.0"},
+        )
+    return _phet_http_client
+
+
+_PROXY_CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".mjs": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+}
+
+
+@app.get("/api/phet/proxy/{path:path}")
+async def phet_proxy(path: str, request: Request) -> Response:
+    """Reverse-proxy PhET static assets so the iframe is same-origin."""
+    if not path or ".." in path:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    upstream_path = f"/{path}"
+    qs = str(request.query_params)
+    if qs:
+        upstream_path += f"?{qs}"
+    try:
+        client = _get_phet_client()
+        resp = await client.get(upstream_path)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Upstream error: {exc}") from exc
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=resp.status_code, detail="Upstream returned error")
+    suffix = Path(path).suffix.lower()
+    content_type = _PROXY_CONTENT_TYPES.get(suffix, resp.headers.get("content-type", "application/octet-stream"))
+    cache_header = "public, max-age=86400" if suffix not in (".html",) else "public, max-age=3600"
+    return Response(
+        content=resp.content,
+        status_code=200,
+        media_type=content_type,
+        headers={"Cache-Control": cache_header, "Access-Control-Allow-Origin": "*"},
+    )
 
 
 @app.post("/api/sessions")

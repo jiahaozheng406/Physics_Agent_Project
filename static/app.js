@@ -48,10 +48,6 @@
       selectedSlug: "",
       frameReady: false,
       frameTimeoutId: 0,
-      captureStream: null,
-      captureVideo: null,
-      captureCanvas: null,
-      captureReady: false,
       captureNoticeShown: false,
     },
   };
@@ -390,10 +386,6 @@
         return;
       }
       await startRecording();
-    });
-
-    window.addEventListener("beforeunload", () => {
-      stopPhetCaptureStream();
     });
 
     document.addEventListener("click", (event) => {
@@ -955,10 +947,23 @@
     updatePhetFrame(sim);
   }
 
+  function phetProxyUrl(embedUrl) {
+    if (!embedUrl) return "";
+    const prefix = "https://phet.colorado.edu/";
+    if (embedUrl.startsWith(prefix)) {
+      const path = "/api/phet/proxy/" + embedUrl.slice(prefix.length);
+      // preserveDrawingBuffer lets us capture the WebGL canvas via toDataURL
+      return path + (path.includes("?") ? "&" : "?") + "preserveDrawingBuffer";
+    }
+    return embedUrl;
+  }
+
   function updatePhetFrame(sim) {
     if (!els.phetFrame || !sim?.embed_url) return;
+    const proxyUrl = phetProxyUrl(sim.embed_url);
     clearTimeout(APP.phet.frameTimeoutId);
-    if (els.phetFrame.src === sim.embed_url && APP.phet.frameReady) {
+    const currentSrc = els.phetFrame.getAttribute("src") || "";
+    if (currentSrc === proxyUrl && APP.phet.frameReady) {
       els.phetFrameLoading?.classList.add("hidden");
       els.phetFrameNotice?.classList.add("hidden");
       return;
@@ -966,8 +971,8 @@
     APP.phet.frameReady = false;
     els.phetFrameLoading?.classList.remove("hidden");
     els.phetFrameNotice?.classList.add("hidden");
-    if (els.phetFrame.src !== sim.embed_url) {
-      els.phetFrame.src = sim.embed_url;
+    if (currentSrc !== proxyUrl) {
+      els.phetFrame.src = proxyUrl;
     }
     APP.phet.frameTimeoutId = window.setTimeout(() => {
       if (!APP.phet.frameReady) {
@@ -989,21 +994,25 @@
     if (!container) return;
     const sections = [
       {
-        title: "先看哪里",
-        items: [sim.layout_zh, ...(Array.isArray(sim.screen_flow_zh) ? sim.screen_flow_zh.slice(0, 3) : [])],
+        title: "界面布局",
+        items: sim.layout_zh ? [sim.layout_zh] : [],
       },
       {
-        title: "可以调什么",
+        title: "观察流程",
+        items: Array.isArray(sim.screen_flow_zh) ? sim.screen_flow_zh : [],
+      },
+      {
+        title: "控件说明",
         items: Array.isArray(sim.controls_zh) ? sim.controls_zh : [],
       },
       {
-        title: "怎么调会发生什么",
+        title: "操作效果",
         items: Array.isArray(sim.interaction_effects_zh) && sim.interaction_effects_zh.length
           ? sim.interaction_effects_zh
           : (Array.isArray(sim.effects_zh) ? sim.effects_zh : []),
       },
       {
-        title: "建议先做哪一步",
+        title: "建议步骤",
         items: Array.isArray(sim.first_steps_zh) ? sim.first_steps_zh : [],
       },
     ]
@@ -1029,110 +1038,66 @@
       .join("");
   }
 
-  function stopPhetCaptureStream() {
-    const stream = APP.phet.captureStream;
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
+  function capturePhetWorkspaceImage() {
+    if (!els.phetFrame || !APP.phet.frameReady) {
+      console.warn("[截图] iframe未就绪", { frame: !!els.phetFrame, ready: APP.phet.frameReady });
+      return null;
     }
-    APP.phet.captureStream = null;
-    APP.phet.captureReady = false;
-    if (APP.phet.captureVideo) {
-      APP.phet.captureVideo.pause();
-      APP.phet.captureVideo.srcObject = null;
-    }
-  }
-
-  async function ensurePhetCaptureStream() {
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      throw new Error("当前浏览器不支持标签页共享截图");
-    }
-
-    const activeTrack = APP.phet.captureStream?.getVideoTracks?.()[0];
-    if (activeTrack && activeTrack.readyState === "live" && APP.phet.captureReady) {
-      return APP.phet.captureStream;
-    }
-
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        preferCurrentTab: true,
-        selfBrowserSurface: "include",
-        surfaceSwitching: "exclude",
-      },
-      audio: false,
-    });
-
-    const video = document.createElement("video");
-    video.playsInline = true;
-    video.muted = true;
-    video.srcObject = stream;
-
-    await new Promise((resolve, reject) => {
-      video.onloadedmetadata = () => {
-        video
-          .play()
-          .then(resolve)
-          .catch(reject);
-      };
-      video.onerror = () => reject(new Error("无法初始化仿真截图流"));
-    });
-
-    stream.getVideoTracks().forEach((track) => {
-      track.onended = () => {
-        APP.phet.captureReady = false;
-        APP.phet.captureStream = null;
-      };
-    });
-
-    APP.phet.captureStream = stream;
-    APP.phet.captureVideo = video;
-    APP.phet.captureCanvas = APP.phet.captureCanvas || document.createElement("canvas");
-    APP.phet.captureReady = true;
-    return stream;
-  }
-
-  async function capturePhetWorkspaceImage() {
-    if (!els.phetFrame) return null;
     try {
-      await ensurePhetCaptureStream();
-    } catch (error) {
+      const iframeWin = els.phetFrame.contentWindow;
+      if (!iframeWin) {
+        console.warn("[截图] 无法访问 iframe contentWindow（可能跨域）");
+        return null;
+      }
+      console.log("[截图] 成功访问 iframe contentWindow");
+
+      // Try PhET's built-in screenshot API (scenery display)
+      const display = iframeWin.phet?.joist?.display;
+      if (display && typeof display.renderToCanvasSync === "function") {
+        console.log("[截图] 找到 PhET display API，尝试 renderToCanvasSync");
+        const wrapper = iframeWin.document.createElement("canvas");
+        const w = display.width || 800;
+        const h = display.height || 600;
+        wrapper.width = w;
+        wrapper.height = h;
+        const ctx = wrapper.getContext("2d");
+        if (ctx) {
+          display.renderToCanvasSync(wrapper);
+          const dataUrl = wrapper.toDataURL("image/jpeg", 0.88);
+          if (dataUrl && dataUrl.length > 100) {
+            console.log("[截图] PhET API 截图成功，数据长度:", dataUrl.length);
+            return { base64: dataUrl, mime: "image/jpeg" };
+          }
+          console.warn("[截图] PhET API 返回空白，回退到 canvas 方式");
+        }
+      } else {
+        console.log("[截图] 未找到 PhET display API，直接用 canvas 方式", { phet: !!iframeWin.phet, joist: !!iframeWin.phet?.joist, display: !!display });
+      }
+
+      // Fallback: grab the largest canvas directly
+      const iframeDoc = iframeWin.document;
+      const canvases = Array.from(iframeDoc.querySelectorAll("canvas"));
+      console.log("[截图] iframe 内 canvas 数量:", canvases.length, canvases.map(c => `${c.width}x${c.height}`));
+      const canvas = canvases.sort((a, b) => (b.width * b.height) - (a.width * a.height))[0];
+      if (!canvas || canvas.width < 20 || canvas.height < 20) {
+        console.warn("[截图] 未找到有效 canvas");
+        return null;
+      }
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      if (!dataUrl || dataUrl === "data:," || dataUrl.length < 100) {
+        console.warn("[截图] canvas.toDataURL 返回空白（WebGL preserveDrawingBuffer 可能未生效）");
+        return null;
+      }
+      console.log("[截图] canvas 截图成功，数据长度:", dataUrl.length);
+      return { base64: dataUrl, mime: "image/jpeg" };
+    } catch (err) {
+      console.error("[截图] 异常:", err.message, err);
       if (!APP.phet.captureNoticeShown) {
-        showToast(`本次未获取到当前仿真画面，已按文本模式继续：${error.message}`);
+        showToast("未能获取仿真画面，已按文本模式继续");
         APP.phet.captureNoticeShown = true;
       }
       return null;
     }
-
-    const video = APP.phet.captureVideo;
-    const canvas = APP.phet.captureCanvas;
-    if (!video || !canvas || !APP.phet.captureReady) {
-      return null;
-    }
-
-    const rect = els.phetFrame.getBoundingClientRect();
-    if (rect.width < 20 || rect.height < 20) {
-      return null;
-    }
-
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || rect.width;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || rect.height;
-    const scaleX = (video.videoWidth || viewportWidth) / viewportWidth;
-    const scaleY = (video.videoHeight || viewportHeight) / viewportHeight;
-    const sourceX = Math.max(0, Math.floor(rect.left * scaleX));
-    const sourceY = Math.max(0, Math.floor(rect.top * scaleY));
-    const sourceW = Math.max(1, Math.floor(rect.width * scaleX));
-    const sourceH = Math.max(1, Math.floor(rect.height * scaleY));
-
-    canvas.width = sourceW;
-    canvas.height = sourceH;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, sourceW, sourceH);
-    ctx.drawImage(video, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
-    return {
-      base64: dataUrl,
-      mime: "image/jpeg",
-    };
   }
 
   async function askFromPhetWorkspace() {
@@ -1147,7 +1112,7 @@
       return;
     }
 
-    const hiddenImage = await capturePhetWorkspaceImage();
+    const hiddenImage = capturePhetWorkspaceImage();
     if (hiddenImage) {
       APP.phet.captureNoticeShown = false;
     }

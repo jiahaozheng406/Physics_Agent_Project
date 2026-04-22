@@ -1590,20 +1590,30 @@ body::before {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+}
+
+.phet-detail-header > div:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .phet-detail-title-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
+  overflow: hidden;
 }
 
 .phet-detail-title-row h3 {
   margin: 0;
   color: #122038;
   font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .phet-language-badge {
@@ -1630,16 +1640,19 @@ body::before {
   margin: 6px 0 0;
   color: #5f6d83;
   font-size: 12px;
+  line-height: 1.6;
 }
 
 .phet-detail-links {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .phet-link-btn {
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
   border: 1px solid rgba(21, 34, 57, 0.08);
   border-radius: 14px;
@@ -1647,7 +1660,10 @@ body::before {
   color: #20314a;
   font-size: 12px;
   font-weight: 600;
-  padding: 10px 12px;
+  padding: 10px 16px;
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  min-width: max-content;
 }
 
 .phet-link-btn-secondary {
@@ -1705,8 +1721,20 @@ body::before {
 
 .phet-info-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
+  align-items: start;
+}
+
+.phet-info-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.phet-info-right {
+  display: flex;
+  flex-direction: column;
 }
 
 .phet-info-card {
@@ -2379,6 +2407,13 @@ body::before {
 
   .phet-info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .phet-info-left,
+  .phet-info-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .simulation-canvas-wrap {

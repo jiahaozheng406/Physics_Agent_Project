@@ -20,8 +20,8 @@ PHET_BASE_URL = "https://phet.colorado.edu"
 PHET_METADATA_URL = PHET_BASE_URL + "/services/metadata/1.3/simulations?format=json&locale={locale}"
 PHYSICS_CATEGORY_ID = "4"
 DEFAULT_CACHE_MAX_AGE_SECONDS = 24 * 60 * 60
-CATALOG_SCHEMA_VERSION = 5
-UI_PROFILE_VERSION = "2026.03.deep-2"
+CATALOG_SCHEMA_VERSION = 9
+UI_PROFILE_VERSION = "2026.03.deep-6"
 FETCH_WORKERS = 8
 
 TOPIC_SPECS = [
@@ -884,6 +884,268 @@ def build_auto_terms(ui_phrases: list[str], topic_key: str, has_official_zh: boo
     return defaults.get(topic_key, ["先辨认界面中的核心术语，再开始调节参数。"])
 
 
+def pick_interface_guidance_controls(
+    controls_zh: list[str],
+    *,
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> list[str]:
+    ranked: list[tuple[int, str]] = []
+    concepts = [normalize_text(label) for label in (concept_labels or []) if normalize_text(label)]
+    for item in controls_zh:
+        clean = normalize_text(item)
+        if not clean:
+            continue
+        if contains_placeholder_token(clean):
+            continue
+        clean_lower = clean.lower()
+        score = 0
+        if any(concept and concept in clean for concept in concepts):
+            score += 8
+        labels = [label for label in extract_label_candidates(clean) if not is_screen_like_label(label, screen_names)]
+        if labels:
+            score += 6
+        primary_labels = [label for label in labels if not is_auxiliary_focus_label(label) and not is_noise_entry_label(label)]
+        auxiliary_labels = [label for label in labels if is_auxiliary_focus_label(label)]
+        if not primary_labels and auxiliary_labels:
+            continue
+        score += len(primary_labels) * 4
+        score -= len(auxiliary_labels) * 6
+        if is_auxiliary_focus_label(clean):
+            score -= 10
+        if is_screen_like_label(clean, screen_names):
+            score -= 8
+        if any(token in clean_lower for token in ['measuring tape', 'ruler']):
+            score -= 10
+        if any(token in clean_lower for token in ['return objects', 'clear', 'reset', 'path', 'grid']):
+            score -= 12
+        if any(token in clean for token in ['\u6d4b\u91cf\u5e26', '\u5c3a\u5b50', '\u8fd4\u56de\u7269\u4f53', '\u6e05\u9664', '\u91cd\u7f6e', '\u8f68\u9053', '\u7f51\u683c']):
+            score -= 12
+        ranked.append((score, clean))
+    ranked.sort(key=lambda item: (-item[0], len(item[1])))
+    picked: list[str] = []
+    for _, item in ranked:
+        if item not in picked:
+            picked.append(item)
+        if len(picked) >= 2:
+            break
+    return picked
+
+
+def pick_interface_guidance_first_steps(
+    first_steps_zh: list[str],
+    *,
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> list[str]:
+    ranked: list[tuple[int, str]] = []
+    concepts = [normalize_text(label) for label in (concept_labels or []) if normalize_text(label)]
+    for item in first_steps_zh:
+        clean = normalize_text(item)
+        if not clean or contains_placeholder_token(clean):
+            continue
+        labels = [label for label in extract_label_candidates(clean) if not is_screen_like_label(label, screen_names)]
+        primary_labels = [label for label in labels if not is_auxiliary_focus_label(label) and not is_noise_entry_label(label)]
+        auxiliary_labels = [label for label in labels if is_auxiliary_focus_label(label)]
+        if not primary_labels and auxiliary_labels:
+            continue
+        score = len(primary_labels) * 5 - len(auxiliary_labels) * 6
+        if any(concept and concept in clean for concept in concepts):
+            score += 3
+        if any(token in clean for token in ["测量带", "尺子", "网格", "轨道（Path）", "Path", "Grid", "Reset", "Clear", "Stopwatch"]):
+            score -= 10
+        ranked.append((score, clean))
+    ranked.sort(key=lambda item: (-item[0], len(item[1])))
+    picked: list[str] = []
+    for _, item in ranked:
+        if item not in picked:
+            picked.append(item)
+        if len(picked) >= 2:
+            break
+    return picked
+
+
+def pick_interface_guidance_effects(
+    interaction_effects_zh: list[str],
+    *,
+    concept_labels: list[str] | None = None,
+) -> list[str]:
+    ranked: list[tuple[int, str]] = []
+    concepts = [normalize_text(label) for label in (concept_labels or []) if normalize_text(label)]
+    for item in interaction_effects_zh:
+        clean = normalize_text(item)
+        if not clean or contains_placeholder_token(clean):
+            continue
+        score = 0
+        if any(concept and concept in clean for concept in concepts):
+            score += 4
+        if any(token in clean for token in ["测量带", "尺子", "网格", "轨道（Path）", "Path", "Grid", "Reset", "Clear"]):
+            score -= 10
+        if any(token in clean for token in ["变化", "增大", "减小", "更强", "更弱", "更亮", "更暗", "靠近", "远离", "偏转", "碰撞", "成像"]):
+            score += 4
+        ranked.append((score, clean))
+    ranked.sort(key=lambda item: (-item[0], len(item[1])))
+    picked: list[str] = []
+    for _, item in ranked:
+        if item not in picked:
+            picked.append(item)
+        if len(picked) >= 2:
+            break
+    return picked
+
+
+def build_sim_research_focus_v2(
+    *,
+    topic_label_zh: str,
+    controls_zh: list[str],
+    readouts_zh: list[str],
+    terms_zh: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> str:
+    focus_labels, readout_labels = build_focus_labels(controls_zh, readouts_zh, terms_zh, concept_labels, screen_names)
+    focus_labels = normalize_question_labels_v2(controls_zh, focus_labels, concept_labels, screen_names)
+    readout_labels = normalize_question_labels_v2(
+        readouts_zh,
+        readout_labels,
+        concept_labels[:2] if concept_labels else None,
+        screen_names,
+        prefer_auxiliary=True,
+    )
+    if len(focus_labels) >= 2 and readout_labels:
+        return f"适合围绕 {focus_labels[0]}、{focus_labels[1]} 与 {readout_labels[0]} 的对应关系做单变量比较和定量判断"
+    if len(focus_labels) >= 2:
+        return f"适合围绕 {focus_labels[0]}、{focus_labels[1]} 做界面调参与现象解释"
+    if focus_labels:
+        return f"适合围绕 {focus_labels[0]} 的调节过程、结果读数与物理规律建立对应关系"
+    return f"适合围绕 {topic_label_zh} 做参数控制、现象比较与规律解释"
+
+
+def build_sim_observation_points_v2(
+    *,
+    title_zh: str,
+    screen_flow_zh: list[str],
+    controls_zh: list[str],
+    interaction_effects_zh: list[str],
+    readouts_zh: list[str],
+    first_steps_zh: list[str],
+    terms_zh: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> list[str]:
+    focus_labels, readout_labels = build_focus_labels(controls_zh, readouts_zh, terms_zh, concept_labels, screen_names)
+    focus_labels = normalize_question_labels_v2(controls_zh, focus_labels, concept_labels, screen_names)
+    readout_labels = normalize_question_labels_v2(
+        readouts_zh,
+        readout_labels,
+        concept_labels[:2] if concept_labels else None,
+        screen_names,
+        prefer_auxiliary=True,
+    )
+    points: list[str] = []
+    if first_steps_zh:
+        append_unique(points, first_steps_zh[0])
+    if len(focus_labels) >= 2:
+        append_unique(points, f"先确认 {focus_labels[0]} 和 {focus_labels[1]} 在当前页面中分别属于调节量还是结果量，再开始比较。")
+    elif focus_labels:
+        append_unique(points, f"先在当前页面定位 {focus_labels[0]} 的位置和作用，再结合其余结果区做单变量观察。")
+    if readout_labels:
+        append_unique(points, f"调参时优先盯住 {readout_labels[0]} 这类结果区，再回看画面现象是否与读数一致。")
+    if interaction_effects_zh:
+        append_unique(points, f"重点验证“{effect_focus_fragment(interaction_effects_zh[0])}”是否真的由你刚刚改动的控件触发。")
+    if len(screen_flow_zh) >= 2:
+        append_unique(points, f"切换到“{title_zh}”的不同页面后，要重新确认当前控件含义，不要把上一页的结论直接套用过来。")
+    return points[:5]
+
+
+def build_sim_suggested_questions_v2(
+    *,
+    title_zh: str,
+    screen_flow_zh: list[str],
+    controls_zh: list[str],
+    interaction_effects_zh: list[str],
+    readouts_zh: list[str],
+    first_steps_zh: list[str],
+    terms_zh: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> list[str]:
+    focus_labels, readout_labels = build_focus_labels(controls_zh, readouts_zh, terms_zh, concept_labels, screen_names)
+    focus_labels = normalize_question_labels_v2(controls_zh, focus_labels, concept_labels, screen_names)
+    readout_labels = normalize_question_labels_v2(
+        readouts_zh,
+        readout_labels,
+        concept_labels[:2] if concept_labels else None,
+        screen_names,
+        prefer_auxiliary=False,
+    )
+    effect_fragment = pick_question_effect(interaction_effects_zh)
+    step_fragment = effect_focus_fragment(first_steps_zh[0]) if first_steps_zh else ""
+    second_step_fragment = effect_focus_fragment(first_steps_zh[1]) if len(first_steps_zh) >= 2 else ""
+    primary_focus = focus_labels[0] if focus_labels else (concept_labels[0] if concept_labels else "当前主控件")
+    secondary_focus = focus_labels[1] if len(focus_labels) >= 2 else (concept_labels[1] if concept_labels and len(concept_labels) >= 2 else "")
+    primary_readout = readout_labels[0] if readout_labels else "当前结果区读数"
+    first_screen = screen_names[0] if screen_names else ""
+    second_screen = screen_names[1] if len(screen_names or []) >= 2 else ""
+    questions: list[str] = []
+    if step_fragment:
+        append_unique(questions, f"按照“{step_fragment}”这一步开始时，第一轮最适合先固定哪个量、先盯哪个结果区？")
+    elif first_screen and second_screen:
+        append_unique(questions, f"如果我准备从 {first_screen} 页面开始做“{title_zh}”，第一轮最适合先固定什么、只扫描哪个主控件？")
+    else:
+        append_unique(questions, f"第一次做“{title_zh}”时，我应该先确认哪组主控件和结果区，才能避免一上来就把变量混在一起？")
+    append_unique(questions, f"如果我现在只单独调 {primary_focus}，除了画面现象，还应该同步记录 {primary_readout} 里的哪几项变化？")
+    if secondary_focus:
+        append_unique(questions, f"把 {primary_focus} 和 {secondary_focus} 分成两轮独立测试时，先做哪一轮更容易把规律看清，为什么？")
+        append_unique(questions, f"如果 {primary_focus} 和 {secondary_focus} 分别变化，{primary_readout} 的变化方式最可能先出现什么差别？")
+    else:
+        append_unique(questions, f"当 {primary_focus} 改变后，我应该先看画面现象、数值读数还是状态标签，顺序该怎么定？")
+    append_unique(questions, f"如果当前截图里 {primary_readout} 已经明显变化，我更应该先回查哪一个主控件、哪一步操作，还是哪一页场景？")
+    if effect_fragment:
+        if secondary_focus:
+            append_unique(questions, f"当界面已经出现“{effect_fragment}”这种结果时，它更像是 {primary_focus} 变了，还是 {secondary_focus} 那一侧的设置变了？")
+        else:
+            append_unique(questions, f"当界面已经出现“{effect_fragment}”这种结果时，通常对应前面哪一步调节已经发生了？")
+    else:
+        append_unique(questions, f"如果现在的现象和我预期不一致，我应该先排查控件设置、页面切换还是结果区读数？")
+    if first_screen and second_screen:
+        append_unique(questions, f"如果我从 {first_screen} 切到 {second_screen}，哪些控件、读数和结论必须重新确认，不能直接沿用？")
+    elif second_step_fragment:
+        append_unique(questions, f"如果我准备接着做“{second_step_fragment}”这一步，前一轮里哪些量必须保持不动，才不会把两种效应混在一起？")
+    else:
+        append_unique(questions, f"要把“{title_zh}”做成一次干净的单变量实验，哪些量应该保持不动，哪个主控件最值得单独扫描？")
+    return questions[:6]
+
+
+def build_interface_guidance_v2(
+    *,
+    first_steps_zh: list[str],
+    controls_zh: list[str],
+    interaction_effects_zh: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> list[str]:
+    guidance: list[str] = []
+    for item in pick_interface_guidance_first_steps(
+        first_steps_zh,
+        concept_labels=concept_labels,
+        screen_names=screen_names,
+    ):
+        append_unique(guidance, item)
+    for item in pick_interface_guidance_controls(
+        controls_zh,
+        concept_labels=concept_labels,
+        screen_names=screen_names,
+    ):
+        append_unique(guidance, item)
+    for item in pick_interface_guidance_effects(
+        interaction_effects_zh,
+        concept_labels=concept_labels,
+    ):
+        append_unique(guidance, item)
+    return guidance[:6]
+
+
 def build_hidden_tutor_prompt(
     *,
     title_zh: str,
@@ -925,6 +1187,7 @@ def build_ui_profile(
     topic_key: str,
     topic_label_zh: str,
     intro_zh: str,
+    learning_goals_zh: str = "",
     analysis_url: str,
     has_official_zh: bool,
 ) -> dict[str, Any]:
@@ -1038,6 +1301,9 @@ COMMON_LABEL_TRANSLATIONS = {
     "wire": "导线",
     "light bulb": "灯泡",
     "resistor": "电阻",
+    "resistance": "电阻",
+    "voltage": "电压",
+    "current": "电流",
     "switch": "开关",
     "show current": "显示电流",
     "electrons": "电子",
@@ -1045,22 +1311,155 @@ COMMON_LABEL_TRANSLATIONS = {
     "voltmeter": "电压表",
     "current chart": "电流图",
     "voltage chart": "电压图",
+    "applied force": "施加力",
+    "friction force": "摩擦力",
+    "net force": "合力",
+    "sum of forces": "合力",
+    "left force": "左力",
+    "right force": "右力",
+    "speed": "速度",
+    "acceleration": "加速度",
+    "values": "数值",
+    "masses": "质量",
+    "return cart": "返回小车",
+    "motion": "运动",
+    "move foot": "移动脚",
+    "move hand": "移动手",
+    "leg swing": "腿部摆动",
+    "arm swing": "手臂摆动",
+    "hand or foot": "手或脚",
+    "charge": "电荷",
+    "charges on body": "身体上的电荷",
+    "electrons on body": "身体上的电子",
+    "discharge": "放电",
+    "shock": "电击",
+    "doorknob": "门把手",
+    "rug": "地毯",
+    "puller": "拉拽者",
     "frequency": "频率",
     "amplitude": "振幅",
+    "tension": "张力",
+    "damping": "阻尼",
+    "pulse": "脉冲",
+    "oscillate": "连续振动",
+    "pulse width": "脉冲宽度",
+    "fixed end": "固定端",
+    "loose end": "自由端",
+    "no end": "无端点",
+    "reference line": "参考线",
     "phase": "相位",
     "wavelength": "波长",
     "energy": "能量",
     "friction": "摩擦",
     "velocity": "速度",
+    "gravity": "重力",
+    "spring strength": "弹簧劲度",
+    "spring constant": "弹簧劲度系数",
+    "natural length": "原长",
+    "unstretched length": "未拉伸长度",
+    "resting position": "静止位置",
+    "equilibrium position": "平衡位置",
+    "center of oscillation": "振动中心",
+    "displacement": "位移",
+    "period trace": "周期轨迹",
+    "energy graph": "能量图",
+    "thermal energy": "热能",
+    "total energy": "总能量",
+    "elastic potential energy": "弹性势能",
+    "gravitational potential energy": "重力势能",
+    "intro": "入门页面",
+    "bounce": "振动页面",
+    "stretch": "拉伸页面",
+    "lab": "实验页面",
+    "vectors": "矢量页面",
+    "playground": "自定义轨道页面",
+    "track playground": "自定义轨道页面",
+    "bar graph": "柱状图",
+    "pie chart": "饼图",
+    "slow motion": "慢动作",
+    "restart skater": "重置滑手",
+    "energy symbols": "能量符号",
+    "forms of energy": "能量形式",
+    "systems": "系统页面",
+    "feed me": "供能控制",
+    "link heaters": "联动加热器",
+    "chemical": "化学能",
+    "electrical": "电能",
+    "mechanical": "机械能",
+    "iron": "铁块",
+    "brick": "砖块",
+    "olive oil": "橄榄油",
+    "clouds": "云层",
+    "generator": "发电机",
+    "what is the mass?": "质量是多少",
+    "forces from objects": "物体施力",
+    "mass labels": "质量标签",
+    "mystery objects": "神秘物体",
+    "rulers": "尺子",
+    "pressure": "压力",
+    "under pressure": "压力场景",
+    "depth": "深度",
+    "water": "水",
+    "liquid": "液体",
+    "fluid density": "液体密度",
+    "container": "容器",
+    "container shape": "容器形状",
+    "blackbody spectrum": "黑体辐射光谱",
+    "temperature": "温度",
+    "intensity": "强度",
+    "peak wavelength": "峰值波长",
+    "infrared": "红外",
+    "ultraviolet": "紫外",
+    "visible light": "可见光",
+    "light bulb": "灯泡",
+    "sun": "太阳",
+    "sirius a": "天狼星 A",
+    "oven": "烤箱",
+    "projectile": "抛体",
+    "launch angle": "发射角",
+    "initial speed": "初速度",
+    "momentum": "动量",
+    "kinetic energy": "动能",
+    "elasticity": "弹性",
+    "elastic": "弹性碰撞",
+    "inelastic": "非弹性碰撞",
+    "vector": "矢量",
+    "x component": "X 分量",
+    "y component": "Y 分量",
+    "resultant": "合矢量",
+    "angle": "角度",
+    "launch": "发射",
+    "variability": "离散性",
+    "sources": "来源分析",
+    "equation": "方程",
+    "components": "分量",
+    "base vectors": "基矢量",
+    "vector values": "矢量数值",
+    "vector addition": "矢量叠加",
+    "proton": "质子",
+    "neutron": "中子",
+    "protons": "质子数",
+    "neutrons": "中子数",
+    "stable": "稳定",
+    "unstable": "不稳定",
+    "decay": "衰变",
+    "alpha decay": "阿尔法衰变",
+    "beta decay": "贝塔衰变",
 }
 NOISE_KEY_PREFIXES = (
     "joist/menuitem",
     "joist/updates",
     "joist/credits",
+    "joist/a11y.",
     "joist/preferences.tabs",
     "joist/translation",
     "joist/thirdparty",
+    "joist/queryparameterswarningdialog",
+    "joist/a11y.voicingtoolbar",
+    "joist/a11y.toolbar",
+    "joist/a11y.preferences.tabs.audio.voicing",
     "scenery_phet/key.",
+    "scenery_phet/symbol.",
     "scenery_phet/keyboardhelpdialog",
 )
 RELEVANT_HINTS = (
@@ -1089,6 +1488,7 @@ RELEVANT_HINTS = (
     "battery",
     "bulb",
     "resistor",
+    "resistance",
     "switch",
     "ammeter",
     "voltmeter",
@@ -1096,6 +1496,26 @@ RELEVANT_HINTS = (
     "electron",
     "current",
     "voltage",
+    "charge",
+    "shock",
+    "discharge",
+    "rug",
+    "doorknob",
+    "foot",
+    "hand",
+    "arm",
+    "leg",
+    "applied force",
+    "friction force",
+    "net force",
+    "sum of forces",
+    "speed",
+    "acceleration",
+    "values",
+    "masses",
+    "return cart",
+    "puller",
+    "tug-of-war",
     "frequency",
     "amplitude",
     "phase",
@@ -1104,7 +1524,147 @@ RELEVANT_HINTS = (
     "friction",
     "velocity",
     "orbit",
+    "pressure",
+    "depth",
+    "water",
+    "liquid",
+    "fluid",
+    "density",
+    "container",
+    "volume",
+    "blackbody",
+    "spectrum",
+    "temperature",
+    "intensity",
+    "peak",
+    "infrared",
+    "ultraviolet",
+    "visible",
+    "sun",
+    "earth",
+    "sirius",
+    "projectile",
+    "launch",
+    "angle",
+    "momentum",
+    "kinetic",
+    "elastic",
+    "inelastic",
+    "collision",
+    "vector",
+    "component",
+    "resultant",
+    "buoyancy",
+    "nucleus",
+    "proton",
+    "neutron",
 )
+ENTRY_NOISE_SNIPPETS = (
+    "tip",
+    "description",
+    "accessiblehelptext",
+    "accessiblename",
+    "accessibleheading",
+    "contextresponse",
+    "screensummary",
+    "qualitativedescription",
+    "qualitativedescriptions",
+    "interactionhint",
+    "contenthint",
+    "detailedcontenthint",
+    "overviewpattern",
+    "keyboardhelpdialog",
+    "currentdetails",
+    "helps text",
+    "screentitle",
+    "screen title",
+    "labelpattern",
+    "masslabelpattern",
+    "graphvalues",
+)
+GENERIC_FOCUS_LABELS = {
+    "a",
+    "b",
+    "c",
+    "d",
+    "intro",
+    "lab",
+    "model",
+    "compare",
+    "mystery",
+    "fast",
+    "slow",
+    "normal",
+    "none",
+    "mean",
+    "stop",
+    "single",
+    "count",
+    "symbol",
+    "stable",
+    "unknown",
+    "seconds",
+}
+GENERIC_SCREEN_LABELS = {
+    "intro",
+    "lab",
+    "model",
+    "to scale",
+    "compare",
+    "mystery",
+    "lens",
+    "mirror",
+    "bar magnet",
+    "electromagnet",
+    "net force",
+    "motion",
+    "friction",
+    "acceleration",
+}
+AUXILIARY_LABEL_SNIPPETS = (
+    "测量带",
+    "尺子",
+    "网格",
+    "路径",
+    "轨迹",
+    "测量工具",
+    "辅助工具",
+    "测量",
+    "屏幕",
+    "图像区",
+    "显示区",
+    "计时器",
+    "重置",
+    "返回物体",
+    "清除",
+    "play",
+    "pause",
+    "reset",
+    "screen",
+    "grid",
+    "path",
+    "ruler",
+    "measuring tape",
+    "stopwatch",
+    "clear",
+    "return objects",
+    "graph values",
+    "history",
+    "chart",
+    "legend",
+)
+UI_LABEL_PATTERN = re.compile(r"[\u4e00-\u9fffA-Za-z0-9 /+\-]{1,28}\uff08[^\uff08\uff09]{1,36}\uff09")
+CONCEPT_KEYWORDS = [
+    "质子", "中子", "电子", "元素", "电荷", "净电荷", "质量数", "原子核", "轨道", "云",
+    "质量", "体积", "密度", "浮力", "液体", "浸没", "平衡", "力矩", "支点", "杠杆",
+    "速度", "加速度", "摩擦", "合力", "施加力", "轨迹", "周期", "面积速度", "速度矢量",
+    "电压", "电阻", "电流", "电池", "灯泡", "电磁铁", "磁场", "指南针", "磁棒", "线圈",
+    "焦距", "物距", "像距", "透镜", "镜面", "光线", "屏幕", "概率", "准备态", "测量",
+    "频率", "振幅", "相位", "波长", "温度", "压强", "压力", "深度", "容器", "形状",
+    "能量", "功率", "导体", "绝缘体", "物体", "位置", "距离", "黑体", "光谱", "峰值",
+    "颜色", "抛体", "抛射角", "角度", "发射", "发射速度", "碰撞", "动量", "动能", "弹性",
+    "非弹性", "矢量", "分量", "合矢量", "液压", "流体", "核素", "衰变", "稳定性", "质子数", "中子数",
+]
 
 
 def normalize_text(raw: Any) -> str:
@@ -1162,22 +1722,7 @@ def fetch_sim_string_maps(analysis_url: str, has_official_zh: bool) -> tuple[dic
 
 
 def extract_bundle_phrases(analysis_url: str) -> list[str]:
-    raw_html = fetch_url_text(analysis_url)
-    if not raw_html:
-        return []
-    phrases = extract_ui_phrases(raw_html)
-    results: list[str] = []
-    seen: set[str] = set()
-    for item in phrases:
-        clean = normalize_text(item)
-        key = clean.lower()
-        if not clean or key in seen:
-            continue
-        seen.add(key)
-        results.append(clean)
-        if len(results) >= 140:
-            break
-    return results
+    return []
 
 
 def is_relevant_string_entry(key: str, text: str) -> bool:
@@ -1189,7 +1734,19 @@ def is_relevant_string_entry(key: str, text: str) -> bool:
         return False
     if "http" in text_lower or "copyright" in text_lower or "licensing" in text_lower:
         return False
-    if len(text_lower) > 220:
+    if "{{" in text_lower or "}}" in text_lower:
+        return False
+    if "parser generator" in text_lower or "svg path" in text_lower:
+        return False
+    if "screenname" in text_lower or "simname" in text_lower:
+        return False
+    if any(snippet in key_lower for snippet in ENTRY_NOISE_SNIPPETS):
+        return False
+    if any(snippet in text_lower for snippet in ENTRY_NOISE_SNIPPETS):
+        return False
+    if text_lower.startswith("note ") or text_lower.startswith("tip "):
+        return False
+    if len(text_lower) > 120:
         return False
     return any(hint in key_lower or hint in text_lower for hint in RELEVANT_HINTS)
 
@@ -1233,6 +1790,10 @@ def build_ui_entries(
 def format_entry_label(entry: dict[str, str]) -> str:
     zh_text = entry.get("zh", "")
     en_text = entry.get("en", "")
+    if "{{" in zh_text or "{{" in en_text:
+        return ""
+    if re.search(r"\{\d+\}", zh_text) or re.search(r"\{\d+\}", en_text):
+        return ""
     if zh_text and not contains_english_words(zh_text):
         if en_text and zh_text != en_text:
             return f"{zh_text}（{en_text}）"
@@ -1244,12 +1805,120 @@ def format_entry_label(entry: dict[str, str]) -> str:
     return english_clean or zh_text or entry.get("key_raw", "")
 
 
+def contains_placeholder_token(text: str) -> bool:
+    clean = normalize_text(text)
+    return bool(clean) and bool(re.search(r"\{\d+\}", clean))
+
+
+def is_noise_entry_label(label: str) -> bool:
+    clean = normalize_text(label)
+    clean_lower = clean.lower()
+    if not clean:
+        return True
+    if contains_placeholder_token(clean):
+        return True
+    if "当前页面" in clean or "当前界面" in clean or "结果区" in clean:
+        return True
+    if re.fullmatch(r"[A-Za-z]{1,3}", clean):
+        return True
+    if re.fullmatch(r"[A-Za-z]+", clean) and clean_lower not in {"lab", "intro", "model"}:
+        return True
+    if re.fullmatch(r"\d+\s*[A-Za-zµμ]+\s*=\s*\d+\s*[A-Za-zµμ]+", clean):
+        return True
+    if len(clean) <= 1 or len(clean) > 42:
+        return True
+    if clean_lower in {"on", "off", "labels", "values", "graph values", "screen", "history", "none", "mean", "stop", "single", "count", "symbol", "stable", "unknown", "seconds", "sim speeds"}:
+        return True
+    if any(
+        snippet in clean_lower
+        for snippet in (
+            "screen title",
+            "graph values",
+            "measuring tape tip",
+            "tip",
+            "help",
+            "summary",
+            "description",
+            "pattern",
+            "history",
+            "legend",
+        )
+    ):
+        return True
+    return False
+
+
+def collect_local_primary_labels(
+    entries: list[dict[str, str]],
+    *,
+    screen_names: list[str] | None = None,
+    limit: int = 8,
+) -> list[str]:
+    labels: list[str] = []
+    ordered_entries = sorted(entries, key=entry_priority)
+    for entry in ordered_entries:
+        label = format_entry_label(entry)
+        if not label or is_noise_entry_label(label):
+            continue
+        if is_screen_like_label(label, screen_names):
+            continue
+        if is_auxiliary_focus_label(label):
+            continue
+        if is_generic_focus_label(label):
+            continue
+        if label not in labels:
+            labels.append(label)
+        if len(labels) >= limit:
+            break
+    return labels
+
+
+def is_compact_ui_label(entry: dict[str, str]) -> bool:
+    key = str(entry.get("key", "")).lower()
+    text = normalize_text(entry.get("zh") or entry.get("en") or "")
+    text_lower = text.lower()
+    if not text:
+        return False
+    if contains_placeholder_token(text):
+        return False
+    if any(snippet in key for snippet in ENTRY_NOISE_SNIPPETS):
+        return False
+    if any(snippet in text_lower for snippet in ENTRY_NOISE_SNIPPETS):
+        return False
+    if text_lower.startswith("note ") or text_lower.startswith("tip "):
+        return False
+    if len(text) > 42:
+        return False
+    if any(marker in text for marker in [".", "!", "?", ";", "：", "。", "\n"]):
+        return False
+    return True
+
+
+def entry_priority(entry: dict[str, str]) -> tuple[int, int, int]:
+    key = str(entry.get("key", "")).lower()
+    label = format_entry_label(entry)
+    score = 0
+    if not is_compact_ui_label(entry):
+        score += 100
+    if is_noise_entry_label(label):
+        score += 120
+    if "label" in key:
+        score -= 10
+    if any(part in key for part in ["screen.", "/screen", ".screen"]):
+        score -= 5
+    if any(part in key for part in ["a11y", "voicing", "summary", "pattern"]):
+        score += 20
+    if is_auxiliary_focus_label(label):
+        score += 15
+    return (score, len(label), len(key))
+
+
 def find_matching_entries(entries: list[dict[str, str]], patterns: list[str], *, limit: int = 6) -> list[dict[str, str]]:
+    candidates = [entry for entry in entries if any(pattern in entry["search"] for pattern in patterns)]
+    candidates.sort(key=entry_priority)
     results: list[dict[str, str]] = []
     seen: set[str] = set()
-    for entry in entries:
-        if not any(pattern in entry["search"] for pattern in patterns):
-            continue
+    for entry in candidates:
         label = format_entry_label(entry)
         if not label or label in seen:
             continue
@@ -1296,6 +1965,7 @@ def build_specific_sections(
     readouts: list[str] = []
     first_steps: list[str] = []
     terms: list[str] = []
+    local_primary_labels = collect_local_primary_labels(entries, screen_names=screen_names, limit=8)
 
     mass_labels = labels_for_patterns(entries, ["mass 1", "mass 2", "planet mass", "satellite mass", "star mass", "moon mass", "space station mass"], limit=6)
     constant_size_labels = labels_for_patterns(entries, ["constant size"], limit=2)
@@ -1303,10 +1973,20 @@ def build_specific_sections(
     move_labels = labels_for_patterns(entries, ["move spheres", "move sphere"], limit=2)
     ruler_labels = labels_for_patterns(entries, ["ruler", "measuring tape", "distance"], limit=3)
     orbit_labels = labels_for_patterns(entries, ["path", "grid", "return objects", "clear"], limit=4)
-    optics_labels = labels_for_patterns(entries, ["lens", "mirror", "focal length", "focal points", "virtual image", "real image", "screen", "object"], limit=8)
+    optics_labels = labels_for_patterns(entries, ["lens", "mirror", "focal length", "focal points", "virtual image", "real image", "projection screen", "convex lens", "concave lens"], limit=8)
     quantum_labels = labels_for_patterns(entries, ["classical coin", "quantum \"coin\"", "start measurement", "new coin", "prepared state", "initial orientation", "coin bias", "probability", "single coin measurements", "multiple coin measurements"], limit=10)
     circuit_labels = labels_for_patterns(entries, ["battery", "wire", "light bulb", "resistor", "switch", "show current", "electrons", "ammeter", "voltmeter", "current chart", "voltage chart"], limit=10)
     wave_labels = labels_for_patterns(entries, ["frequency", "amplitude", "phase", "wavelength"], limit=6)
+    voltage_labels = labels_for_patterns(entries, ["voltage"], limit=4)
+    current_labels = labels_for_patterns(entries, ["current"], limit=4)
+    resistance_labels = labels_for_patterns(entries, ["resistance", "ohms"], limit=4)
+    john_labels = labels_for_patterns(entries, ["move foot", "move hand", "leg swing", "arm swing", "hand or foot", "charge", "discharge", "shock", "doorknob", "rug"], limit=10)
+    net_force_labels = labels_for_patterns(entries, ["left force", "right force", "sum of forces", "net force", "values", "speed", "return cart", "go", "pause"], limit=10)
+    motion_force_labels = labels_for_patterns(entries, ["applied force", "friction force", "friction", "acceleration", "masses", "stopwatch"], limit=10)
+    pressure_labels = labels_for_patterns(entries, ["pressure", "depth", "water", "liquid", "fluid", "density", "container", "volume"], limit=10)
+    balance_labels = labels_for_patterns(entries, ["what is the mass", "forces from objects", "mass labels", "mystery objects", "rulers", "balance"], limit=10)
+    blackbody_labels = labels_for_patterns(entries, ["blackbody", "temperature", "wavelength", "intensity", "peak", "visible", "infrared", "ultraviolet", "light bulb", "sun", "earth", "sirius"], limit=10)
+    collision_labels = labels_for_patterns(entries, ["collision", "momentum", "kinetic", "elastic", "inelastic", "velocity", "mass", "vector"], limit=10)
 
     if mass_labels:
         append_unique(controls, f"{'、'.join(mass_labels[:4])} 是当前界面中最值得优先单独调节的质量相关控件；一次只改一个质量量，更容易看清力、轨道或图像变化来自哪里。")
@@ -1323,38 +2003,109 @@ def build_specific_sections(
         append_unique(readouts, f"重点读取 {'、'.join(force_value_labels)} 中的数值，再和当前图像或箭头长度做对照。")
         append_unique(first_steps, f"先打开 {force_value_labels[0]}，保证每次改参数后都能立即看到数值变化。")
 
-    if move_labels or ruler_labels:
-        visible_tools = "、".join((move_labels + ruler_labels)[:4])
-        append_unique(controls, f"{visible_tools} 负责改变物体间距或读取当前距离，最适合用来验证“距离改变后现象和数值会怎样变”。")
-        append_unique(effects, "当距离相关控件变化时，系统的受力强弱、轨道尺度或图像位置通常会明显变化，距离越近时变化往往更敏感。")
-        append_unique(readouts, f"如果界面已经显示 {visible_tools}，应优先读取距离或位置读数，不要只靠视觉估计。")
+    if move_labels:
+        append_unique(controls, f"{'、'.join(move_labels[:2])} 用于直接改变主对象的位置关系；每次拖动后都应立刻回看画面和主要读数发生了什么变化。")
+    if ruler_labels:
+        visible_tools = "、".join(ruler_labels[:3])
+        append_unique(readouts, f"如果当前页面已经显示 {visible_tools}，应优先读取这些长度或位置读数，不要只靠视觉估计。")
+        append_unique(terms, f"{visible_tools} 属于辅助测量工具，适合用来核对距离、位置或尺寸读数。")
 
     if orbit_labels:
-        append_unique(controls, f"{'、'.join(orbit_labels[:4])} 适合配合质量或速度调节一起使用，用来对比轨道形状、尺度和历史轨迹。")
-        append_unique(effects, "打开轨迹、网格或测量工具后，更容易分清当前变化是轨道形状变了、尺度变了，还是仅仅显示方式变了。")
+        append_unique(terms, f"{'、'.join(orbit_labels[:4])} 更适合作为辅助显示项，用来核对轨迹、尺度或历史轨迹，而不是主调节控件。")
 
-    if optics_labels:
+    if topic_key == "light-and-radiation" and optics_labels:
         append_unique(controls, f"{'、'.join(optics_labels[:5])} 构成了当前光学页面的主控件与主对象；先辨认物体、光学元件和像屏，再解释成像结果。")
         append_unique(effects, "焦距、物体位置和像屏位置变化会一起影响像的位置、大小、正倒和清晰度，因此应同时看光路和像的状态。")
         append_unique(readouts, "光学实验应优先读取物体位置、焦点位置、像屏位置以及真实像/虚像状态。")
         append_unique(first_steps, "先固定焦距，只移动物体位置；等成像规律看清以后，再移动像屏或切换页面。")
 
-    if quantum_labels:
+    if topic_key == "quantum-phenomena" and quantum_labels:
         append_unique(controls, f"{'、'.join(quantum_labels[:6])} 是当前量子硬币页面的核心入口；先确定准备态，再进入测量。")
         append_unique(effects, "改变准备态或偏置后，单次结果可能仍然随机，但多次测量后的概率分布会系统性改变。")
         append_unique(readouts, "量子硬币实验应优先读取概率显示、准备态信息以及单次/多次测量结果。")
         append_unique(first_steps, "先确定你正在比较经典硬币还是量子“硬币”，再固定一个准备态去做重复测量。")
 
-    if circuit_labels:
+    if topic_key == "electricity-magnets-and-circuits" and len(circuit_labels) >= 3:
         append_unique(controls, f"{'、'.join(circuit_labels[:6])} 构成当前电路页面的核心器件和测量工具；应先确认回路是否闭合，再解释读数。")
         append_unique(effects, "电池、开关、电阻和测量工具改变后，电流、电压、电子流和灯泡亮度往往会一起变化，因此要把结构变化和读数变化对应起来。")
         append_unique(readouts, "电路实验应优先读取电流、电压、电子流显示和灯泡亮度，而不是只看元件摆放。")
         append_unique(first_steps, "先搭一个最简单的闭合回路，再加入电阻、开关和仪表逐项比较。")
 
-    if wave_labels:
+    if topic_key == "electricity-magnets-and-circuits" and voltage_labels and current_labels and resistance_labels:
+        append_unique(controls, f"{voltage_labels[0]} 和 {resistance_labels[0]} 是当前页面里最值得先单独调节的两个量；{current_labels[0]} 更适合当作结果量来读。")
+        append_unique(effects, f"固定 {resistance_labels[0]} 时，提高 {voltage_labels[0]} 往往会让 {current_labels[0]} 增大；固定 {voltage_labels[0]} 时，提高 {resistance_labels[0]} 则会让 {current_labels[0]} 变小。")
+        append_unique(readouts, f"这类界面应同时记录 {voltage_labels[0]}、{resistance_labels[0]} 和 {current_labels[0]}，避免只看某一个量。")
+        append_unique(first_steps, f"先固定 {resistance_labels[0]} 只调 {voltage_labels[0]}，再固定 {voltage_labels[0]} 只调 {resistance_labels[0]}。")
+
+    if slug == "john-travoltage" and john_labels:
+        append_unique(controls, f"{'、'.join(john_labels[:4])} 对应这类静电放电实验的两步操作：先摩擦积累电荷，再把手移向放电目标。")
+        append_unique(effects, "脚在地毯上摩擦会让人体电荷逐步积累；当手靠近门把手并达到放电条件时，火花和电荷数量会同步变化。")
+        append_unique(readouts, "这类界面应优先读取身体上的电荷数量，并结合手与门把手的相对位置判断是否会放电。")
+        append_unique(first_steps, "先完成摩擦起电，再慢慢把手移向放电目标，不要跳过积累阶段直接解释火花。")
+
+    if slug == "forces-and-motion-basics" and (net_force_labels or motion_force_labels):
+        combined_force_labels = "、".join((net_force_labels + motion_force_labels)[:6])
+        append_unique(controls, f"{combined_force_labels} 是当前力与运动页面最值得优先辨认的控件和显示项；先分清你现在在看平衡、摩擦、速度还是加速度。")
+        append_unique(effects, "左右受力不平衡时，小车或物体会朝合力方向改变运动状态；摩擦增大后，同样的推力更难让物体启动或持续运动。")
+        append_unique(readouts, "这类页面应优先读取左/右受力、合力、速度、加速度和质量读数，再结合动画解释运动。")
+        append_unique(first_steps, "先打开数值显示，再只改变一个受力或一个摩擦量去看运动状态如何变化。")
+
+    if topic_key == "sound-and-waves" and wave_labels:
         append_unique(controls, f"{'、'.join(wave_labels[:4])} 是当前波动页面的关键控制量，建议每次只改一个量。")
         append_unique(effects, "频率、振幅、相位或波长变化后，波形、干涉结构或传播速度会发生对应变化。")
         append_unique(readouts, "波动实验应同时读取波形、节点位置和相关数值，避免只看动画。")
+
+    if slug == "balancing-act":
+        primary_balance_labels = balance_labels or local_primary_labels
+        if primary_balance_labels:
+            append_unique(controls, f"{'、'.join(primary_balance_labels[:3])} 是当前平衡实验里最值得先分清的对象与标签；先确认每个物体的质量，再比较它们放在不同位置时木板如何倾斜。")
+            append_unique(controls, "做比较时应优先固定同一组物体，只改变物体离支点的距离，观察平衡状态什么时候被打破。")
+            append_unique(effects, "相同物体放得离支点更远时，对木板的转动影响通常更明显；距离更近时，维持平衡所需的配重会不同。")
+            append_unique(effects, "如果左右两侧物体质量不同，就不能只看数量是否一样，而要同时看质量大小和离支点的距离。")
+            append_unique(readouts, "重点读取物体质量标签、左右位置和木板最终是否保持水平。")
+            append_unique(first_steps, "先在左右两侧各放一个已知质量的物体，只移动其中一侧的位置，观察什么时候重新达到平衡。")
+            append_unique(first_steps, "看懂已知质量物体后，再换成神秘物体，反推它需要放在什么位置才能与另一侧平衡。")
+            append_unique(terms, "质量标签（Mass Labels）用于区分每个物体的质量大小。")
+            append_unique(terms, "神秘物体（Mystery Objects）用于在已知另一侧条件下反推未知质量。")
+
+    if slug == "under-pressure":
+        primary_pressure_labels = pressure_labels or local_primary_labels
+        if primary_pressure_labels:
+            append_unique(controls, f"{'、'.join(primary_pressure_labels[:4])} 是当前压强实验最值得先观察的主变量；应先分清你是在改变深度、液体条件还是容器场景。")
+            append_unique(controls, "做比较时应先固定液体类型和容器，再只改变深度或压在液面上的附加条件。")
+            append_unique(effects, "在同一种液体里，深度增加时压强通常会上升，因此回答时要先确认当前探测点是否下移。")
+            append_unique(effects, "如果改了液体条件或容器场景，读数差异可能来自液体密度或压强分布，而不只是几何位置变化。")
+            append_unique(readouts, "重点读取压强变化、探测点深度以及液体场景下的读数差异。")
+            append_unique(first_steps, "先固定同一种液体，只移动探测点深度，比较浅层和深层压强读数。")
+            append_unique(first_steps, "再保持深度相近，切换不同液体或容器条件，比较压强变化到底来自哪一个因素。")
+            append_unique(terms, "压力（Pressure）对应当前结果区最核心的读数。")
+            append_unique(terms, "深度（Depth）决定探测位置在液体中的层次。")
+
+    if slug == "blackbody-spectrum":
+        primary_blackbody_labels = blackbody_labels or local_primary_labels
+        if primary_blackbody_labels:
+            append_unique(controls, f"{'、'.join(primary_blackbody_labels[:4])} 是当前黑体辐射实验最值得先锁定的主变量与结果区；先分清温度控制和光谱显示，不要把观测对象与可调量混在一起。")
+            append_unique(controls, "做比较时应先固定同一个物体或光源，再单独改变温度，观察谱线峰值和整体强度如何移动。")
+            append_unique(effects, "温度升高后，光谱峰值通常会向更短波长移动，同时辐射强度整体增强。")
+            append_unique(effects, "不同光源在相近温度下会呈现不同的可见颜色分布，因此解释时要先说清当前比较的是哪一种辐射源。")
+            append_unique(readouts, "重点读取峰值波长、光谱强度分布和当前温度。")
+            append_unique(first_steps, "先固定一种光源，只调温度，比较峰值波长和曲线高度如何变化。")
+            append_unique(first_steps, "再换到另一种光源，在相近温度下比较颜色和谱线分布是否一致。")
+            append_unique(terms, "黑体辐射光谱（Blackbody Spectrum）表示不同波长上的辐射强度分布。")
+            append_unique(terms, "峰值波长（Peak Wavelength）用于判断最高强度落在哪个波段。")
+
+    if slug == "collision-lab":
+        primary_collision_labels = collision_labels or local_primary_labels
+        if primary_collision_labels:
+            append_unique(controls, f"{'、'.join(primary_collision_labels[:4])} 是当前碰撞实验最值得先区分的主控件和结果量；先确认你正在比较质量、速度还是碰撞类型。")
+            append_unique(controls, "做比较时应先固定一侧小车，只改变另一侧的初速度或质量，再观察碰撞后两车状态。")
+            append_unique(effects, "初速度增大时，碰撞后的动量交换和速度变化通常更明显；解释时要先分清是哪一辆车被改快了。")
+            append_unique(effects, "如果切换碰撞类型，速度变化和能量保留方式都会不同，因此不能把弹性与非弹性碰撞结论混用。")
+            append_unique(readouts, "重点读取碰撞前后两车速度、质量以及动量或能量变化。")
+            append_unique(first_steps, "先固定两车质量，只改单侧初速度，比较碰撞前后速度如何重新分配。")
+            append_unique(first_steps, "再保持初速度条件相近，切换碰撞类型，比较哪些量守恒、哪些结果区明显改变。")
+            append_unique(terms, "动量（Momentum）用于判断碰撞前后整体运动量如何分配。")
+            append_unique(terms, "碰撞类型（Elastic / Inelastic）决定碰撞后速度和能量表现。")
 
     if not screen_names and topic_key == "quantum-phenomena":
         append_unique(first_steps, "先辨认当前页面里哪个区域负责准备态，哪个区域负责执行测量，哪个区域负责显示统计结果。")
@@ -1365,7 +2116,7 @@ def build_specific_sections(
             append_unique(first_steps, f"先在首页分清 {screen_names[0]} 和 {screen_names[1]} 这类不同页面，再进入当前页面做单变量比较。")
 
     if not controls:
-        visible_labels = labels_for_patterns(entries, list(RELEVANT_HINTS), limit=5)
+        visible_labels = local_primary_labels or labels_for_patterns(entries, list(RELEVANT_HINTS), limit=5)
         if visible_labels:
             append_unique(controls, f"当前界面已经出现 {'、'.join(visible_labels)} 等控件或显示项，先辨认它们分别控制什么，再开始调参。")
     if not effects:
@@ -1373,9 +2124,12 @@ def build_specific_sections(
     if not readouts:
         append_unique(readouts, "先找到当前页面中真正会变的数值、图像或状态标记，再根据这些变化判断参数作用。")
     if not first_steps:
-        append_unique(first_steps, "先确认当前在哪个页面，再固定大部分参数，只改变一个控件去观察结果。")
+        if local_primary_labels:
+            append_unique(first_steps, f"先确认当前页面里 {'、'.join(local_primary_labels[:2])} 分别属于调节区还是结果区，再固定其他条件做单变量比较。")
+        else:
+            append_unique(first_steps, "先确认当前在哪个页面，再固定大部分参数，只改变一个控件去观察结果。")
     if not terms:
-        visible_labels = labels_for_patterns(entries, list(RELEVANT_HINTS), limit=4)
+        visible_labels = local_primary_labels or labels_for_patterns(entries, list(RELEVANT_HINTS), limit=4)
         for label in visible_labels[:4]:
             append_unique(terms, f"{label} 是当前实验中需要优先辨认的界面术语。")
 
@@ -1407,6 +2161,412 @@ def build_auto_layout_v2(topic_key: str, screen_names: list[str]) -> str:
     if screen_names:
         return f"该实验存在 {len(screen_names)} 个主要页面或场景切换入口，进入具体页面后通常需要在主场景区、参数控制区和读数/显示区之间来回对照。"
     return build_topic_layout(topic_key)
+
+
+def is_generic_focus_label(label: str) -> bool:
+    base = re.sub(r"（.*?）", "", normalize_text(label)).strip().lower()
+    return (
+        not base
+        or len(base) <= 1
+        or base in GENERIC_FOCUS_LABELS
+        or "测量带" in base
+        or "尺子" in base
+        or "measuring tape" in base
+        or "ruler" in base
+        or "测量工具" in base
+        or "辅助测量工具" in base
+        or "如果界面允许你改变" in base
+        or "分别" in base
+    )
+
+
+def extract_concept_labels(title_zh: str, intro_zh: str, learning_goals_zh: str) -> list[str]:
+    combined = f"{title_zh}\n{intro_zh}\n{learning_goals_zh}"
+    labels: list[str] = []
+    for keyword in CONCEPT_KEYWORDS:
+        if keyword in combined and keyword not in labels:
+            labels.append(keyword)
+    return labels[:8]
+
+
+def controls_need_concept_fallback(controls_zh: list[str]) -> bool:
+    if not controls_zh:
+        return True
+    return all(any(marker in item for marker in ["测量带", "尺子", "长度或位置测量工具"]) for item in controls_zh)
+
+
+def readouts_need_concept_fallback(readouts_zh: list[str]) -> bool:
+    if not readouts_zh:
+        return True
+    return all(any(marker in item for marker in ["长度或位置读数", "尺子", "测量带"]) for item in readouts_zh)
+
+
+def effects_need_concept_fallback(interaction_effects_zh: list[str]) -> bool:
+    if not interaction_effects_zh:
+        return True
+    return all(
+        any(marker in item for marker in ["长度、位置或间距", "只凭动画判断趋势", "只凭视觉估计"])
+        for item in interaction_effects_zh
+    )
+
+
+def extract_focus_phrase(text: str) -> str:
+    clean = normalize_text(text)
+    if not clean:
+        return ""
+    for prefix in [
+        "如果当前页面已经显示 ",
+        "如果界面正在显示与 ",
+        "如果界面已经显示 ",
+        "重点读取 ",
+        "当前页面更应该先分清 ",
+        "当前页面已经出现 ",
+        "当前界面已经出现 ",
+        "先确认当前页面主要是在比较 ",
+        "先确认当前页面里 ",
+        "当前页面主要是在比较 ",
+        "本页先把 ",
+    ]:
+        if clean.startswith(prefix):
+            clean = clean[len(prefix):].strip()
+    for marker in [
+        "中的哪几个量",
+        "等控件或显示项",
+        "等控件",
+        "等结果区",
+        "当作主变量",
+        "当作观测量",
+        "分别对应",
+        "应一次只动一个量",
+        "用于",
+        "表示",
+        "决定",
+        "对应",
+        "构成",
+        "负责",
+        "适合",
+        "打开后",
+        "勾选后",
+        "只在",
+        "是",
+        "属于",
+    ]:
+        if marker in clean:
+            clean = clean.split(marker, 1)[0].strip("，；。:： ")
+            break
+    clean = re.split(r"[，；。]", clean, maxsplit=1)[0].strip()
+    return clean[:48]
+
+
+def shorten_focus_label(label: str) -> str:
+    clean = normalize_text(label).strip("，；。 ")
+    if not clean:
+        return ""
+    for marker in ("是这类", "是当前", "是", "用于", "决定", "适合", "表示", "对应"):
+        if marker in clean and len(clean) > 8:
+            head = clean.split(marker, 1)[0].strip("，；。 ")
+            if 1 < len(head) <= 24:
+                clean = head
+                break
+    limit = 40 if "（" in clean and "）" in clean else 28
+    shortened = clean[:limit]
+    if shortened.count("（") > shortened.count("）"):
+        shortened = shortened.rsplit("（", 1)[0].strip("，；。 ")
+    return shortened
+
+
+def normalize_extracted_label(label: str) -> str:
+    clean = normalize_text(label).strip('\uff0c\uff1b\u3002 ')
+    clean = re.sub(r'^(?:\u548c|\u4e0e|\u53ca|\u6216)\s*', '', clean)
+    clean = re.sub(
+        r'^(?:\u5982\u679c\u754c\u9762\u663e\u793a|\u91cd\u70b9\u8bfb\u53d6|\u8bfb\u53d6|\u663e\u793a|Lab\s*\u9875\u9762\u4e2d\u7684|Intro\s*\u9875\u9762\u4e2d\u7684|\u5f53\u524d\u9875\u9762\u4e2d\u7684|\u5f53\u524d\u9875\u9762\u91cc\u7684)\s*',
+        '',
+        clean,
+        flags=re.IGNORECASE,
+    )
+    return shorten_focus_label(clean.strip('\uff0c\uff1b\u3002 '))
+
+
+def extract_label_candidates(text: str) -> list[str]:
+    clean = normalize_text(text)
+    if not clean:
+        return []
+    candidates: list[str] = []
+    for match in UI_LABEL_PATTERN.findall(clean):
+        label = normalize_extracted_label(match)
+        if label and label not in candidates:
+            candidates.append(label)
+    if candidates:
+        return candidates[:8]
+    phrase = normalize_extracted_label(extract_focus_phrase(clean))
+    if not phrase:
+        return []
+    fallback: list[str] = []
+    for part in re.split(r'[\u3001\u4e0e\u548c\u53ca\u6216/]', phrase):
+        label = normalize_extracted_label(part)
+        if label and label not in fallback:
+            fallback.append(label)
+    return fallback[:4]
+
+
+def is_screen_like_label(label: str, screen_names: list[str] | None = None) -> bool:
+    normalized = normalize_text(label).lower()
+    if not normalized:
+        return True
+    base = re.sub(r"\uff08[^\uff08\uff09]+\uff09", "", normalized).strip()
+    if base in GENERIC_SCREEN_LABELS:
+        return True
+    for screen_name in screen_names or []:
+        screen_clean = normalize_text(screen_name).lower()
+        screen_base = re.sub(r"\uff08[^\uff08\uff09]+\uff09", "", screen_clean).strip()
+        if normalized == screen_clean or base == screen_base:
+            return True
+    return False
+
+
+def is_auxiliary_focus_label(label: str) -> bool:
+    normalized = normalize_text(label).lower()
+    base = re.sub(r"\uff08[^\uff08\uff09]+\uff09", "", normalized).strip()
+    if not base:
+        return True
+    if any(snippet in normalized for snippet in AUXILIARY_LABEL_SNIPPETS):
+        return True
+    if base in {"values", "graph", "display", "image", "readout"}:
+        return True
+    return False
+
+
+def build_focus_labels(
+    controls_zh: list[str],
+    readouts_zh: list[str],
+    terms_zh: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    control_labels: list[str] = []
+    readout_labels: list[str] = []
+    for item in controls_zh:
+        candidates = extract_label_candidates(item) or [extract_focus_phrase(item)]
+        for label in candidates:
+            if (
+                label
+                and not is_noise_entry_label(label)
+                and not is_generic_focus_label(label)
+                and not is_screen_like_label(label, screen_names)
+                and label not in control_labels
+            ):
+                control_labels.append(label)
+    for item in readouts_zh:
+        candidates = extract_label_candidates(item) or [extract_focus_phrase(item)]
+        for label in candidates:
+            if label and not is_noise_entry_label(label) and not is_generic_focus_label(label) and label not in readout_labels:
+                readout_labels.append(label)
+    if len(control_labels) < 2:
+        for item in terms_zh:
+            candidates = extract_label_candidates(item) or [extract_focus_phrase(item)]
+            for label in candidates:
+                if (
+                    label
+                    and not is_noise_entry_label(label)
+                    and not is_generic_focus_label(label)
+                    and not is_screen_like_label(label, screen_names)
+                    and label not in control_labels
+                ):
+                    control_labels.append(label)
+    concept_bucket = [label for label in (concept_labels or []) if label and label not in control_labels]
+    if len(control_labels) < 2:
+        control_labels = [*concept_bucket, *control_labels]
+    return control_labels[:8], readout_labels[:6]
+
+
+def effect_focus_fragment(text: str) -> str:
+    clean = normalize_text(text)
+    if not clean:
+        return ""
+    fragment = re.split(r"[。；]", clean, maxsplit=1)[0].strip()
+    limit = 78
+    if len(fragment) <= limit:
+        return fragment
+    shortened = fragment[:limit]
+    comma = max(shortened.rfind("，"), shortened.rfind("、"))
+    if comma >= 16:
+        shortened = shortened[:comma]
+    if shortened.count("（") > shortened.count("）"):
+        shortened = shortened.rsplit("（", 1)[0].strip("，；。 ")
+    return shortened
+
+
+def normalize_question_labels(
+    controls_zh: list[str],
+    focus_labels: list[str],
+    concept_labels: list[str] | None = None,
+) -> list[str]:
+    labels = [label for label in focus_labels if not is_generic_focus_label(label)]
+    if concept_labels:
+        if controls_need_concept_fallback(controls_zh) or len(labels) < 2:
+            labels = [*concept_labels, *labels]
+        elif any(any(marker in label for marker in ["测量带", "尺子", "测量工具"]) for label in labels[:2]):
+            labels = [*concept_labels, *labels]
+    cleaned: list[str] = []
+    for label in labels:
+        base = normalize_text(label).strip("，；。 ")
+        if (
+            base
+            and not is_generic_focus_label(base)
+            and "测量工具" not in base
+            and "测量带" not in base
+            and "尺子" not in base
+            and base not in cleaned
+        ):
+            cleaned.append(base)
+    return cleaned[:6]
+
+
+def normalize_question_labels_v2(
+    controls_zh: list[str],
+    focus_labels: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+    *,
+    prefer_auxiliary: bool = False,
+) -> list[str]:
+    labels = [label for label in focus_labels if not is_generic_focus_label(label)]
+    if concept_labels:
+        if controls_need_concept_fallback(controls_zh) or len(labels) < 2:
+            labels = [*concept_labels, *labels]
+        elif any(any(marker in label for marker in ['\u6d4b\u91cf\u5e26', '\u5c3a\u5b50', '\u6d4b\u91cf\u5de5\u5177']) for label in labels[:2]):
+            labels = [*concept_labels, *labels]
+    primary: list[str] = []
+    auxiliary: list[str] = []
+    for label in labels:
+        base = shorten_focus_label(normalize_text(label).strip('\uff0c\uff1b\u3002'))
+        if (
+            base
+            and not is_noise_entry_label(base)
+            and not is_generic_focus_label(base)
+            and '\u6d4b\u91cf\u5de5\u5177' not in base
+            and '\u6d4b\u91cf\u5e26' not in base
+            and '\u5c3a\u5b50' not in base
+            and not is_screen_like_label(base, screen_names)
+        ):
+            if is_auxiliary_focus_label(base):
+                if base not in auxiliary:
+                    auxiliary.append(base)
+            elif base not in primary:
+                primary.append(base)
+    ordered = [*primary]
+    if concept_labels and len(ordered) < 2:
+        for label in concept_labels:
+            clean = shorten_focus_label(normalize_text(label).strip('\uff0c\uff1b\u3002'))
+            if clean and not is_noise_entry_label(clean) and clean not in ordered and not is_screen_like_label(clean, screen_names):
+                ordered.append(clean)
+    if prefer_auxiliary or len(ordered) < 3:
+        for label in auxiliary:
+            if label not in ordered:
+                ordered.append(label)
+    return ordered[:6]
+
+
+def pick_question_effect(interaction_effects_zh: list[str]) -> str:
+    for item in interaction_effects_zh:
+        fragment = effect_focus_fragment(item)
+        if fragment and not any(marker in fragment for marker in ["长度、位置或间距", "只凭动画判断趋势", "只凭视觉估计"]):
+            return fragment
+    return effect_focus_fragment(interaction_effects_zh[0]) if interaction_effects_zh else ""
+
+
+def build_sim_research_focus(
+    title_zh: str,
+    topic_label_zh: str,
+    controls_zh: list[str],
+    readouts_zh: list[str],
+    terms_zh: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> str:
+    focus_labels, readout_labels = build_focus_labels(controls_zh, readouts_zh, terms_zh, concept_labels, screen_names)
+    focus_labels = normalize_question_labels_v2(controls_zh, focus_labels, concept_labels, screen_names)
+    readout_labels = normalize_question_labels_v2(
+        readouts_zh,
+        readout_labels,
+        concept_labels[:2] if concept_labels else None,
+        screen_names,
+        prefer_auxiliary=True,
+    )
+    if focus_labels and readout_labels:
+        return f"适合围绕 {focus_labels[0]}、{focus_labels[min(1, len(focus_labels) - 1)]} 与 {readout_labels[0]} 做单变量比较和定量判读"
+    if focus_labels:
+        return f"适合围绕 {focus_labels[0]} 与 {focus_labels[min(1, len(focus_labels) - 1)]} 做界面操作和现象分析"
+    return f"适合围绕 {topic_label_zh} 做参数控制、现象比较与规律解释"
+
+
+def build_sim_observation_points(
+    title_zh: str,
+    screen_flow_zh: list[str],
+    controls_zh: list[str],
+    interaction_effects_zh: list[str],
+    readouts_zh: list[str],
+    first_steps_zh: list[str],
+    terms_zh: list[str],
+    concept_labels: list[str] | None = None,
+    screen_names: list[str] | None = None,
+) -> list[str]:
+    focus_labels, readout_labels = build_focus_labels(controls_zh, readouts_zh, terms_zh, concept_labels, screen_names)
+    focus_labels = normalize_question_labels_v2(controls_zh, focus_labels, concept_labels, screen_names)
+    readout_labels = normalize_question_labels_v2(
+        readouts_zh,
+        readout_labels,
+        concept_labels[:2] if concept_labels else None,
+        screen_names,
+        prefer_auxiliary=True,
+    )
+    blocks: list[str] = []
+    if first_steps_zh:
+        append_unique(blocks, first_steps_zh[0])
+    if focus_labels:
+        anchor = "、".join(focus_labels[:2])
+        append_unique(blocks, f"先确认 {anchor} 在当前页面中的位置与角色，分清哪些是控制量，哪些是结果量。")
+    if readout_labels:
+        append_unique(blocks, f"调参时优先读取 {readout_labels[0]} 这类结果区，再回看画面现象是否与读数一致。")
+    if interaction_effects_zh:
+        append_unique(blocks, f"重点比较“{effect_focus_fragment(interaction_effects_zh[0])}”这一类变化是否真的来自你刚刚调整的控件。")
+    if len(screen_flow_zh) >= 2:
+        append_unique(blocks, "切换页面或模式后，要重新确认当前控件含义，不要把上一页的结论直接套到这一页。")
+    append_unique(blocks, f"围绕“{title_zh}”做观察时，尽量一次只改一个量，并把界面读数、图像反馈和物理解释串起来。")
+    return blocks[:5]
+
+
+def build_sim_suggested_questions(
+    title_zh: str,
+    screen_flow_zh: list[str],
+    controls_zh: list[str],
+    interaction_effects_zh: list[str],
+    readouts_zh: list[str],
+    first_steps_zh: list[str],
+    terms_zh: list[str],
+    concept_labels: list[str] | None = None,
+) -> list[str]:
+    focus_labels, readout_labels = build_focus_labels(controls_zh, readouts_zh, terms_zh, concept_labels)
+    focus_labels = normalize_question_labels(controls_zh, focus_labels, concept_labels)
+    readout_labels = normalize_question_labels(readouts_zh, readout_labels, concept_labels[:2] if concept_labels else None)
+    effect_fragment = pick_question_effect(interaction_effects_zh)
+    questions: list[str] = []
+    if focus_labels:
+        if len(focus_labels) >= 2:
+            append_unique(questions, f"在“{title_zh}”里，先调 {focus_labels[0]} 还是先调 {focus_labels[1]}，更容易看清核心规律？")
+        append_unique(questions, f"如果我现在只改变 {focus_labels[0]}，你建议我先盯着哪个读数或现象看？")
+    if len(focus_labels) >= 2 and readout_labels:
+        append_unique(questions, f"固定 {focus_labels[0]}、只改变 {focus_labels[1]} 时，{readout_labels[0]} 通常会怎样变化？")
+    if readout_labels:
+        append_unique(questions, f"当前截图里如果 {readout_labels[0]} 明显变大或变小，我应该优先回头检查哪个控件？")
+    if effect_fragment:
+        append_unique(questions, f"在这个实验里，出现“{effect_fragment}”通常意味着我刚刚做了什么操作？")
+    if first_steps_zh:
+        append_unique(questions, f"如果我是第一次做“{title_zh}”，应该按什么顺序操作，才能避免一开始就把变量混在一起？")
+    if len(screen_flow_zh) >= 2:
+        append_unique(questions, f"如果我已经切到另一页或另一种模式，当前这页最应该先确认哪组控件和结果区？")
+    append_unique(questions, f"要把“{title_zh}”做成一次干净的单变量实验，哪些量应该固定，哪一个量最值得单独扫描？")
+    return questions[:6]
 
 
 def build_hidden_tutor_prompt(
@@ -1454,6 +2614,7 @@ def build_ui_profile(
     topic_key: str,
     topic_label_zh: str,
     intro_zh: str,
+    learning_goals_zh: str = "",
     analysis_url: str,
     has_official_zh: bool,
 ) -> dict[str, Any]:
@@ -1482,6 +2643,92 @@ def build_ui_profile(
     readouts_zh = [str(item).strip() for item in (override.get("readouts_zh") or auto_sections["readouts_zh"]) if str(item).strip()]
     first_steps_zh = [str(item).strip() for item in (override.get("first_steps_zh") or auto_sections["first_steps_zh"]) if str(item).strip()]
     terms_zh = [str(item).strip() for item in (override.get("terms_zh") or auto_sections["terms_zh"]) if str(item).strip()]
+    concept_labels = extract_concept_labels(title_zh, intro_zh, learning_goals_zh)
+    local_primary_labels = collect_local_primary_labels(entries, screen_names=screen_names, limit=6)
+
+    if controls_need_concept_fallback(controls_zh):
+        controls_zh = [item for item in controls_zh if not any(marker in item for marker in ["测量带", "尺子", "长度或位置测量工具"])]
+        if local_primary_labels:
+            anchor = "、".join(local_primary_labels[: min(3, len(local_primary_labels))])
+            append_unique(controls_zh, f"当前页面更应该先分清 {anchor} 分别对应哪一组对象、调节区或结果区，再开始调参。")
+            if len(local_primary_labels) >= 2:
+                append_unique(controls_zh, f"如果界面同时出现 {local_primary_labels[0]} 和 {local_primary_labels[1]}，应一次只动一个主控件，再回看当前结果区。")
+        elif concept_labels:
+            anchor = "、".join(concept_labels[: min(3, len(concept_labels))])
+            append_unique(controls_zh, f"当前页面更应该先分清 {anchor} 分别对应哪一组对象、调节区或结果区，再开始调参。")
+            if len(concept_labels) >= 2:
+                append_unique(controls_zh, f"如果界面允许你改变 {concept_labels[0]} 或 {concept_labels[1]}，应一次只动一个量，再回看当前结果区。")
+    if readouts_need_concept_fallback(readouts_zh):
+        readouts_zh = [item for item in readouts_zh if not any(marker in item for marker in ["测量带", "尺子", "长度或位置读数"])]
+        if local_primary_labels:
+            anchor = "、".join(local_primary_labels[: min(2, len(local_primary_labels))])
+            append_unique(readouts_zh, f"如果界面正在显示与 {anchor} 相关的数值、状态或分类结果，应先把这些结果区变化看清，再回头解释参数作用。")
+        elif concept_labels:
+            anchor = "、".join(concept_labels[: min(2, len(concept_labels))])
+            append_unique(readouts_zh, f"如果界面正在显示与 {anchor} 对应的数值、分类结果或状态变化，应把它们当作主要判断依据，而不是只看辅助测量工具。")
+    if len(first_steps_zh) < 2:
+        if local_primary_labels:
+            anchor = "、".join(local_primary_labels[: min(3, len(local_primary_labels))])
+            append_unique(first_steps_zh, f"先确认当前页面主要是在比较 {anchor} 中的哪几个量，再开始做单变量调节。")
+        elif concept_labels:
+            anchor = "、".join(concept_labels[: min(3, len(concept_labels))])
+            append_unique(first_steps_zh, f"先确认当前页面主要是在比较 {anchor} 中的哪几个量，再开始做单变量调节。")
+    if effects_need_concept_fallback(interaction_effects_zh) and len(concept_labels) >= 2:
+        interaction_effects_zh = [
+            item
+            for item in interaction_effects_zh
+            if not any(marker in item for marker in ["长度、位置或间距", "只凭动画判断趋势", "只凭视觉估计"])
+        ]
+        append_unique(interaction_effects_zh, f"当 {concept_labels[0]} 或 {concept_labels[1]} 对应的设置变化时，应同步比较界面状态、数值结果和图像反馈，不要只看单一动画。")
+        if len(concept_labels) >= 3:
+            append_unique(interaction_effects_zh, f"如果 {concept_labels[2]} 的显示结果发生明显变化，应回头检查前面改动的是哪个核心量，而不是直接套用结论。")
+    research_focus_zh = str(
+        override.get("research_focus_zh")
+        or build_sim_research_focus_v2(
+            topic_label_zh=topic_label_zh,
+            controls_zh=controls_zh,
+            readouts_zh=readouts_zh,
+            terms_zh=terms_zh,
+            concept_labels=concept_labels,
+            screen_names=screen_names,
+        )
+    ).strip()
+    observation_points = [
+        str(item).strip()
+        for item in (
+            override.get("observation_points")
+            or build_sim_observation_points_v2(
+                title_zh=title_zh,
+                screen_flow_zh=screen_flow_zh,
+                controls_zh=controls_zh,
+                interaction_effects_zh=interaction_effects_zh,
+                readouts_zh=readouts_zh,
+                first_steps_zh=first_steps_zh,
+                terms_zh=terms_zh,
+                concept_labels=concept_labels,
+                screen_names=screen_names,
+            )
+        )
+        if str(item).strip()
+    ]
+    suggested_questions = [
+        str(item).strip()
+        for item in (
+            override.get("suggested_questions")
+            or build_sim_suggested_questions_v2(
+                title_zh=title_zh,
+                screen_flow_zh=screen_flow_zh,
+                controls_zh=controls_zh,
+                interaction_effects_zh=interaction_effects_zh,
+                readouts_zh=readouts_zh,
+                first_steps_zh=first_steps_zh,
+                terms_zh=terms_zh,
+                concept_labels=concept_labels,
+                screen_names=screen_names,
+            )
+        )
+        if str(item).strip()
+    ]
 
     hidden_tutor_prompt_zh = str(
         override.get("hidden_tutor_prompt_zh")
@@ -1515,7 +2762,16 @@ def build_ui_profile(
         "readouts_zh": readouts_zh,
         "first_steps_zh": first_steps_zh,
         "terms_zh": terms_zh,
-        "interface_guidance_zh": [*first_steps_zh[:2], *controls_zh[:2], *interaction_effects_zh[:2]],
+        "research_focus_zh": research_focus_zh,
+        "observation_points": observation_points,
+        "suggested_questions": suggested_questions,
+        "interface_guidance_zh": build_interface_guidance_v2(
+            first_steps_zh=first_steps_zh,
+            controls_zh=controls_zh,
+            interaction_effects_zh=interaction_effects_zh,
+            concept_labels=concept_labels,
+            screen_names=screen_names,
+        ),
         "hidden_tutor_prompt_zh": hidden_tutor_prompt_zh,
         "ui_profile_version": UI_PROFILE_VERSION,
         "needs_manual_review": needs_manual_review,
@@ -1666,6 +2922,7 @@ class PhetCatalogService:
                             topic_key=fallback["_topic_key"],
                             topic_label_zh=fallback["topic_zh"],
                             intro_zh=fallback["intro_zh"],
+                            learning_goals_zh=fallback.get("learning_goals_zh", ""),
                             analysis_url="",
                             has_official_zh=bool(fallback["has_official_zh"]),
                         )
@@ -1702,6 +2959,7 @@ class PhetCatalogService:
                 topic_key=item["_topic_key"],
                 topic_label_zh=item["topic_zh"],
                 intro_zh=item["intro_zh"],
+                learning_goals_zh=item.get("learning_goals_zh", ""),
                 analysis_url=item["_analysis_url"],
                 has_official_zh=bool(item["has_official_zh"]),
             )
@@ -1744,6 +3002,9 @@ class PhetCatalogService:
                     and isinstance(sim.get("readouts_zh"), list)
                     and isinstance(sim.get("first_steps_zh"), list)
                     and isinstance(sim.get("terms_zh"), list)
+                    and isinstance(sim.get("observation_points"), list)
+                    and isinstance(sim.get("suggested_questions"), list)
+                    and isinstance(sim.get("research_focus_zh"), str)
                     and isinstance(sim.get("hidden_tutor_prompt_zh"), str)
                     and isinstance(sim.get("layout_zh"), str)
                 )
