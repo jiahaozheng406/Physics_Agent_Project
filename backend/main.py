@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import csv
 import hashlib
 import io
 import json
@@ -375,6 +376,12 @@ def require_current_user(authorization: str | None = Header(default=None)) -> di
     user = STORE.get_user_by_token(token)
     if not user:
         raise HTTPException(status_code=401, detail="请先登录后再访问工作区。")
+    return user
+
+
+def require_teacher_user(user: dict[str, Any] = Depends(require_current_user)) -> dict[str, Any]:
+    if normalize_role(str(user.get("role") or "")) != "teacher":
+        raise HTTPException(status_code=403, detail="仅教师端可以查看学生问题统计。")
     return user
 
 
@@ -1126,6 +1133,44 @@ async def session_state(
 @app.get("/api/sessions")
 async def list_sessions(user: dict[str, Any] = Depends(require_current_user)) -> dict[str, Any]:
     return session_catalog_payload(user)
+
+
+@app.get("/api/teacher/student-question-stats")
+async def student_question_stats(
+    limit: int = Query(default=80, ge=10, le=500),
+    user: dict[str, Any] = Depends(require_teacher_user),
+) -> dict[str, Any]:
+    del user
+    return STORE.get_student_question_statistics(limit=limit)
+
+
+@app.get("/api/teacher/student-question-stats/export")
+async def export_student_question_stats(
+    user: dict[str, Any] = Depends(require_teacher_user),
+) -> Response:
+    del user
+    rows = STORE.list_student_questions_for_export()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["提问时间", "学生", "会话", "输入类型", "问题内容", "状态", "模型"])
+    for row in rows:
+        writer.writerow(
+            [
+                row.get("created_at") or "",
+                row.get("student_name") or "",
+                row.get("session_title") or "",
+                row.get("input_mode") or "",
+                row.get("content") or "",
+                row.get("status") or "",
+                row.get("model_used") or "",
+            ]
+        )
+    filename = f"student-question-stats-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.csv"
+    return Response(
+        content="\ufeff" + output.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/phet/catalog")

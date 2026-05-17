@@ -299,6 +299,86 @@
     return entry;
   }
 
+  function listLocalStudentQuestionRows(state) {
+    return state.sessions.flatMap((session) => {
+      const messages = Array.isArray(state.messages[session.session_id]) ? state.messages[session.session_id] : [];
+      return messages
+        .filter((item) => item.role === "user" && item.status !== "error")
+        .map((item) => ({
+          id: item.id || "",
+          created_at: item.created_at || "",
+          input_mode: item.input_mode || "text",
+          content: item.content || "",
+          status: item.status || "",
+          model_used: item.model_used || "",
+          session_id: session.session_id,
+          session_title: session.title || DEFAULT_SESSION_TITLE,
+          student_name: "本地学生",
+        }));
+    }).sort((a, b) => Date.parse(b.created_at || "") - Date.parse(a.created_at || ""));
+  }
+
+  function buildLocalQuestionStats(state, limit = 80) {
+    const rows = listLocalStudentQuestionRows(state);
+    const byInputMode = new Map();
+    const byDay = new Map();
+    const topMap = new Map();
+    rows.forEach((row) => {
+      const mode = row.input_mode || "text";
+      byInputMode.set(mode, (byInputMode.get(mode) || 0) + 1);
+      const day = String(row.created_at || "").slice(0, 10);
+      if (day) byDay.set(day, (byDay.get(day) || 0) + 1);
+      const question = String(row.content || "").trim();
+      if (question) {
+        const old = topMap.get(question) || { question, count: 0, latest_at: "" };
+        old.count += 1;
+        if (!old.latest_at || Date.parse(row.created_at || "") > Date.parse(old.latest_at || "")) {
+          old.latest_at = row.created_at || "";
+        }
+        topMap.set(question, old);
+      }
+    });
+    return {
+      summary: {
+        question_count: rows.length,
+        student_count: rows.length ? 1 : 0,
+        session_count: new Set(rows.map((row) => row.session_id)).size,
+        first_question_at: rows.length ? rows[rows.length - 1].created_at : "",
+        latest_question_at: rows.length ? rows[0].created_at : "",
+      },
+      by_input_mode: [...byInputMode.entries()].map(([input_mode, question_count]) => ({ input_mode, question_count })),
+      by_day: [...byDay.entries()]
+        .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+        .slice(0, 14)
+        .map(([date, question_count]) => ({ date, question_count })),
+      top_questions: [...topMap.values()]
+        .sort((a, b) => b.count - a.count || Date.parse(b.latest_at || "") - Date.parse(a.latest_at || ""))
+        .slice(0, 12),
+      recent_questions: rows.slice(0, Math.max(10, Math.min(500, Number(limit) || 80))),
+    };
+  }
+
+  function csvEscape(value) {
+    return `"${String(value ?? "").replaceAll('"', '""')}"`;
+  }
+
+  function buildLocalQuestionStatsCsv(state) {
+    const rows = listLocalStudentQuestionRows(state);
+    const lines = [["提问时间", "学生", "会话", "输入类型", "问题内容", "状态", "模型"].map(csvEscape).join(",")];
+    rows.forEach((row) => {
+      lines.push([
+        row.created_at,
+        row.student_name,
+        row.session_title,
+        row.input_mode,
+        row.content,
+        row.status,
+        row.model_used,
+      ].map(csvEscape).join(","));
+    });
+    return `\ufeff${lines.join("\r\n")}\r\n`;
+  }
+
   function autoTitleSession(session, messageText) {
     const cleanMessage = String(messageText || "").trim();
     if (!cleanMessage) return;
@@ -1056,6 +1136,21 @@
         return buildResponse({
           folders: listFoldersPayload(state),
           sessions: listSessionsPayload(state, assets),
+        });
+      }
+
+      if (path === "/api/teacher/student-question-stats" && method === "GET") {
+        return buildResponse(buildLocalQuestionStats(state, Number(url.searchParams.get("limit") || 80)));
+      }
+
+      if (path === "/api/teacher/student-question-stats/export" && method === "GET") {
+        const filename = `student-question-stats-${new Date().toISOString().slice(0, 19).replaceAll(/[-:T]/g, "")}.csv`;
+        return new Response(buildLocalQuestionStatsCsv(state), {
+          status: 200,
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+          },
         });
       }
 

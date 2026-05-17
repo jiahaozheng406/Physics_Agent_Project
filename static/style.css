@@ -922,6 +922,111 @@ body::before {
   gap: 8px;
 }
 
+.teacher-stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.teacher-stats-section .section-title-row {
+  margin-bottom: 0;
+}
+
+.teacher-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.teacher-stat-card {
+  min-width: 0;
+  border: 1px solid rgba(21, 34, 57, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px 8px;
+}
+
+.teacher-stat-card span {
+  display: block;
+  color: #607089;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.teacher-stat-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #17243b;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.teacher-stats-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.teacher-stats-actions .ghost-side-btn {
+  min-height: 38px;
+  padding-inline: 10px;
+}
+
+.teacher-stats-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teacher-stats-block-title {
+  color: #3f506b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.teacher-question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teacher-question-list li {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(21, 34, 57, 0.08);
+  border-radius: 8px;
+  background: rgba(247, 250, 253, 0.78);
+  padding: 8px 9px;
+}
+
+.teacher-question-list li span {
+  color: #253754;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.teacher-question-list li strong,
+.teacher-question-list li small {
+  color: #718099;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.teacher-question-list .teacher-question-empty {
+  color: #718099;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .upload-dropzone {
   width: 100%;
   min-height: 116px;
@@ -3698,8 +3803,8 @@ body::before {
 
   .sim-action-btn {
     flex: 1 1 0;
-    justify-content: center;
-  }
+  justify-content: center;
+}
 
   .newton-comparison-row {
     grid-template-columns: 1fr;

@@ -665,6 +665,12 @@
     pendingAudio: null,
     history: loadHistory(),
     sessionCatalog: { folders: [], sessions: [] },
+    teacherStats: {
+      loading: false,
+      loaded: false,
+      error: "",
+      data: null,
+    },
     sending: false,
     mediaRecorder: null,
     recordingTimer: null,
@@ -902,6 +908,15 @@
     logoutBtn: document.getElementById("logoutBtn"),
     teacherIsolationHint: document.getElementById("teacherIsolationHint"),
     studentIsolationHint: document.getElementById("studentIsolationHint"),
+    teacherStatsSection: document.getElementById("teacherStatsSection"),
+    teacherStatsMeta: document.getElementById("teacherStatsMeta"),
+    teacherStatsQuestionCount: document.getElementById("teacherStatsQuestionCount"),
+    teacherStatsStudentCount: document.getElementById("teacherStatsStudentCount"),
+    teacherStatsSessionCount: document.getElementById("teacherStatsSessionCount"),
+    refreshTeacherStatsBtn: document.getElementById("refreshTeacherStatsBtn"),
+    exportTeacherStatsBtn: document.getElementById("exportTeacherStatsBtn"),
+    teacherTopQuestions: document.getElementById("teacherTopQuestions"),
+    teacherRecentQuestions: document.getElementById("teacherRecentQuestions"),
 
     uploadSection: document.getElementById("uploadSection"),
     uploadSectionMeta: document.getElementById("uploadSectionMeta"),
@@ -1283,6 +1298,14 @@
 
     els.clearHistoryBtn?.addEventListener("click", async () => {
       await clearConversationHistory();
+    });
+
+    els.refreshTeacherStatsBtn?.addEventListener("click", async () => {
+      await loadTeacherStats({ force: true });
+    });
+
+    els.exportTeacherStatsBtn?.addEventListener("click", async () => {
+      await exportTeacherStats();
     });
 
     els.newConversationBtn?.addEventListener("click", async () => {
@@ -2628,6 +2651,8 @@
     }
     els.teacherIsolationHint?.classList.toggle("hidden", !isTeacher);
     els.studentIsolationHint?.classList.toggle("hidden", isTeacher || !user);
+    els.teacherStatsSection?.classList.toggle("hidden", !isTeacher);
+    renderTeacherStats();
 
     if (els.uploadSectionMeta) {
       els.uploadSectionMeta.textContent = isTeacher
@@ -9863,6 +9888,144 @@
       showToast(`清空文档失败：${error.message}`);
     }
   }
+
+  async function loadTeacherStats({ force = false } = {}) {
+    if (APP.auth.user?.role !== "teacher") {
+      APP.teacherStats = { loading: false, loaded: false, error: "", data: null };
+      renderTeacherStats();
+      return;
+    }
+    if (APP.teacherStats.loading || (APP.teacherStats.loaded && !force)) {
+      renderTeacherStats();
+      return;
+    }
+    APP.teacherStats.loading = true;
+    APP.teacherStats.error = "";
+    renderTeacherStats();
+    try {
+      const response = await fetch("/api/teacher/student-question-stats?limit=80");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.detail || `HTTP ${response.status}`);
+      }
+      APP.teacherStats = {
+        loading: false,
+        loaded: true,
+        error: "",
+        data,
+      };
+      renderTeacherStats();
+    } catch (error) {
+      APP.teacherStats.loading = false;
+      APP.teacherStats.loaded = true;
+      APP.teacherStats.error = error?.message || "统计加载失败";
+      renderTeacherStats();
+      showToast(`学生问题统计加载失败：${APP.teacherStats.error}`);
+    }
+  }
+
+  async function exportTeacherStats() {
+    if (APP.auth.user?.role !== "teacher") {
+      showToast("仅教师端可以导出学生问题统计");
+      return;
+    }
+    const button = els.exportTeacherStatsBtn;
+    const oldHtml = button?.innerHTML || "";
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<i class="ri-loader-4-line"></i><span>导出中</span>';
+    }
+    try {
+      const response = await fetch("/api/teacher/student-question-stats/export");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || `HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const matched = disposition.match(/filename="?([^"]+)"?/i);
+      const filename = matched?.[1] || `student-question-stats-${Date.now()}.csv`;
+      downloadBlob(blob, filename);
+      showToast(`已开始导出表格：${filename}`);
+    } catch (error) {
+      showToast(`导出统计失败：${error.message || "未知错误"}`);
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = oldHtml;
+      }
+    }
+  }
+
+  function renderTeacherStats() {
+    const state = APP.teacherStats || {};
+    const data = state.data || {};
+    const summary = data.summary || {};
+    const isTeacher = APP.auth.user?.role === "teacher";
+    els.teacherStatsSection?.classList.toggle("hidden", !isTeacher);
+    if (!isTeacher) return;
+
+    const questionCount = Number(summary.question_count || 0);
+    const studentCount = Number(summary.student_count || 0);
+    const sessionCount = Number(summary.session_count || 0);
+    if (els.teacherStatsQuestionCount) els.teacherStatsQuestionCount.textContent = String(questionCount);
+    if (els.teacherStatsStudentCount) els.teacherStatsStudentCount.textContent = String(studentCount);
+    if (els.teacherStatsSessionCount) els.teacherStatsSessionCount.textContent = String(sessionCount);
+    if (els.teacherStatsMeta) {
+      if (state.loading) {
+        els.teacherStatsMeta.textContent = "加载中";
+      } else if (state.error) {
+        els.teacherStatsMeta.textContent = "加载失败";
+      } else if (state.loaded) {
+        els.teacherStatsMeta.textContent = summary.latest_question_at
+          ? `最近 ${formatDateTime(summary.latest_question_at)}`
+          : "暂无数据";
+      } else {
+        els.teacherStatsMeta.textContent = "待加载";
+      }
+    }
+    if (els.refreshTeacherStatsBtn) {
+      els.refreshTeacherStatsBtn.disabled = Boolean(state.loading);
+    }
+    if (els.exportTeacherStatsBtn) {
+      els.exportTeacherStatsBtn.disabled = Boolean(state.loading) || !questionCount;
+    }
+
+    const topQuestions = Array.isArray(data.top_questions) ? data.top_questions : [];
+    if (els.teacherTopQuestions) {
+      els.teacherTopQuestions.innerHTML = topQuestions.length
+        ? topQuestions.map((item) => `
+            <li>
+              <span>${escapeHtml(truncateText(item.question || "", 48))}</span>
+              <strong>${escapeHtml(String(item.count || 0))} 次</strong>
+            </li>
+          `).join("")
+        : '<li class="teacher-question-empty">暂无高频问题</li>';
+    }
+
+    const recentQuestions = Array.isArray(data.recent_questions) ? data.recent_questions : [];
+    if (els.teacherRecentQuestions) {
+      els.teacherRecentQuestions.innerHTML = recentQuestions.length
+        ? recentQuestions.slice(0, 8).map((item) => `
+            <li>
+              <span>${escapeHtml(truncateText(item.content || "", 54))}</span>
+              <small>${escapeHtml(item.student_name || "学生")} · ${escapeHtml(formatDateTime(item.created_at))}</small>
+            </li>
+          `).join("")
+        : '<li class="teacher-question-empty">暂无近期提问</li>';
+    }
+  }
+
+  function downloadBlob(blob, filename) {
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1600);
+  }
   function updatePendingAttachmentBars() {
     if (els.pendingImageBar && els.pendingImageText) {
       if (!APP.pendingImage) {
@@ -9901,6 +10064,12 @@
     setUploadStatus(getDocumentStatusText(Number(data.doc_count || 0)));
     if (data.last_model && els.modelBadge) {
       els.modelBadge.textContent = data.last_model;
+    }
+    if (APP.auth.user?.role === "teacher") {
+      loadTeacherStats().catch((error) => {
+        APP.teacherStats.error = error?.message || "统计加载失败";
+        renderTeacherStats();
+      });
     }
     renderConversation(data.messages || []);
     if (!Array.isArray(data.messages) || !data.messages.length) {
@@ -10907,6 +11076,17 @@
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
+  }
+
+  function formatDateTime(ts) {
+    const time = new Date(ts).getTime();
+    if (!Number.isFinite(time)) return "";
+    return new Date(time).toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   function escapeHtml(text) {

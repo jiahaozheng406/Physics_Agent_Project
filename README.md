@@ -106,6 +106,12 @@ Instead of direct answers:
 - "Let's start with force analysis..."
 - "Note the difference between velocity and acceleration direction"
 
+#### 6. Teacher Dashboard
+
+- Teacher and student workspaces are separated by role-based login.
+- Teachers can view aggregated student question statistics: total questions, active students, sessions, high-frequency questions, and recent questions.
+- Teachers can export student question records as a UTF-8 CSV table for Excel or WPS analysis.
+
 ### API Endpoints
 
 | Method | Path | Description |
@@ -121,6 +127,8 @@ Instead of direct answers:
 | PATCH | `/api/folders/{id}` | Rename folder |
 | DELETE | `/api/folders/{id}` | Delete folder |
 | GET | `/api/phet/catalog` | Get simulation list |
+| GET | `/api/teacher/student-question-stats` | Teacher-only student question analytics |
+| GET | `/api/teacher/student-question-stats/export` | Export student question CSV |
 | DELETE | `/api/clear-docs` | Clear knowledge base |
 | POST | `/api/clear-history` | Clear chat history |
 
@@ -166,6 +174,7 @@ SQLite with WAL mode, foreign key constraints, indexed queries.
 - [ ] Vector database (Chroma/Milvus) + embedding model
 - [ ] Frontend modularization
 - [ ] Docker containerization
+- [x] Student question statistics and CSV export for teachers
 - [ ] Student progress tracking
 - [ ] Automated lab report generation
 
@@ -271,6 +280,12 @@ uvicorn backend.main:app --reload --port 8000
 - "我们先从受力分析开始..."
 - "注意区分速度和加速度的方向"
 
+#### 6. 教师端学生问题统计
+
+- 教师端与学生端基于登录角色隔离工作区。
+- 教师端可查看学生提问汇总，包括问题总数、学生数、会话数、高频问题与近期提问。
+- 支持将学生提问明细导出为 UTF-8 CSV 表格，便于使用 Excel / WPS 进行课后分析。
+
 ### API 端点
 
 | 方法 | 路径 | 功能 |
@@ -286,6 +301,8 @@ uvicorn backend.main:app --reload --port 8000
 | PATCH | `/api/folders/{id}` | 重命名文件夹 |
 | DELETE | `/api/folders/{id}` | 删除文件夹 |
 | GET | `/api/phet/catalog` | 获取实验列表 |
+| GET | `/api/teacher/student-question-stats` | 教师端学生问题统计 |
+| GET | `/api/teacher/student-question-stats/export` | 导出学生问题 CSV |
 | DELETE | `/api/clear-docs` | 清空知识库 |
 | POST | `/api/clear-history` | 清空对话历史 |
 
@@ -331,6 +348,7 @@ Physics_Agent_Project/
 - [ ] 向量数据库（Chroma/Milvus）+ 嵌入模型
 - [ ] 前端代码模块化拆分
 - [ ] Docker 容器化部署
+- [x] 教师端学生问题统计与 CSV 导出
 - [ ] 学生学习进度追踪
 - [ ] 实验报告自动生成
 

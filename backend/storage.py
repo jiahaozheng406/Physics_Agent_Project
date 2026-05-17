@@ -1163,6 +1163,138 @@ class SessionStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def get_student_question_statistics(self, *, limit: int = 80) -> dict[str, Any]:
+        clean_limit = max(10, min(500, int(limit or 80)))
+        with self._connect() as conn:
+            totals_row = conn.execute(
+                """
+                SELECT
+                    COUNT(*) AS question_count,
+                    COUNT(DISTINCT u.id) AS student_count,
+                    COUNT(DISTINCT s.session_id) AS session_count,
+                    MIN(m.created_at) AS first_question_at,
+                    MAX(m.created_at) AS latest_question_at
+                FROM messages m
+                JOIN sessions s ON s.session_id = m.session_id
+                JOIN user_sessions us ON us.session_id = s.session_id
+                JOIN users u ON u.id = us.user_id
+                WHERE u.role = 'student'
+                  AND us.session_kind = 'conversation'
+                  AND m.role = 'user'
+                  AND m.status IN ('done', 'pending', 'streaming')
+                """
+            ).fetchone()
+            by_input_mode = conn.execute(
+                """
+                SELECT m.input_mode, COUNT(*) AS question_count
+                FROM messages m
+                JOIN user_sessions us ON us.session_id = m.session_id
+                JOIN users u ON u.id = us.user_id
+                WHERE u.role = 'student'
+                  AND us.session_kind = 'conversation'
+                  AND m.role = 'user'
+                  AND m.status IN ('done', 'pending', 'streaming')
+                GROUP BY m.input_mode
+                ORDER BY question_count DESC, m.input_mode ASC
+                """
+            ).fetchall()
+            by_day = conn.execute(
+                """
+                SELECT substr(m.created_at, 1, 10) AS date, COUNT(*) AS question_count
+                FROM messages m
+                JOIN user_sessions us ON us.session_id = m.session_id
+                JOIN users u ON u.id = us.user_id
+                WHERE u.role = 'student'
+                  AND us.session_kind = 'conversation'
+                  AND m.role = 'user'
+                  AND m.status IN ('done', 'pending', 'streaming')
+                GROUP BY substr(m.created_at, 1, 10)
+                ORDER BY date DESC
+                LIMIT 14
+                """
+            ).fetchall()
+            top_questions = conn.execute(
+                """
+                SELECT
+                    trim(m.content) AS question,
+                    COUNT(*) AS count,
+                    MAX(m.created_at) AS latest_at
+                FROM messages m
+                JOIN user_sessions us ON us.session_id = m.session_id
+                JOIN users u ON u.id = us.user_id
+                WHERE u.role = 'student'
+                  AND us.session_kind = 'conversation'
+                  AND m.role = 'user'
+                  AND m.status IN ('done', 'pending', 'streaming')
+                  AND length(trim(m.content)) > 0
+                GROUP BY trim(m.content)
+                ORDER BY count DESC, latest_at DESC
+                LIMIT 12
+                """
+            ).fetchall()
+            recent_questions = conn.execute(
+                """
+                SELECT
+                    m.id,
+                    m.created_at,
+                    m.input_mode,
+                    m.content,
+                    s.session_id,
+                    s.title AS session_title,
+                    u.display_name AS student_name
+                FROM messages m
+                JOIN sessions s ON s.session_id = m.session_id
+                JOIN user_sessions us ON us.session_id = s.session_id
+                JOIN users u ON u.id = us.user_id
+                WHERE u.role = 'student'
+                  AND us.session_kind = 'conversation'
+                  AND m.role = 'user'
+                  AND m.status IN ('done', 'pending', 'streaming')
+                ORDER BY m.created_at DESC
+                LIMIT ?
+                """,
+                (clean_limit,),
+            ).fetchall()
+        totals = dict(totals_row) if totals_row else {}
+        return {
+            "summary": {
+                "question_count": int(totals.get("question_count") or 0),
+                "student_count": int(totals.get("student_count") or 0),
+                "session_count": int(totals.get("session_count") or 0),
+                "first_question_at": totals.get("first_question_at"),
+                "latest_question_at": totals.get("latest_question_at"),
+            },
+            "by_input_mode": [dict(row) for row in by_input_mode],
+            "by_day": [dict(row) for row in by_day],
+            "top_questions": [dict(row) for row in top_questions],
+            "recent_questions": [dict(row) for row in recent_questions],
+        }
+
+    def list_student_questions_for_export(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    m.created_at,
+                    u.display_name AS student_name,
+                    s.title AS session_title,
+                    m.input_mode,
+                    m.content,
+                    m.status,
+                    m.model_used
+                FROM messages m
+                JOIN sessions s ON s.session_id = m.session_id
+                JOIN user_sessions us ON us.session_id = s.session_id
+                JOIN users u ON u.id = us.user_id
+                WHERE u.role = 'student'
+                  AND us.session_kind = 'conversation'
+                  AND m.role = 'user'
+                  AND m.status IN ('done', 'pending', 'streaming')
+                ORDER BY m.created_at DESC
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_folder_by_name(self, name: str, *, user_id: str) -> dict[str, Any] | None:
         clean_name = (name or "").strip()
         if not clean_name:

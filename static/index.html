@@ -173,6 +173,45 @@
         </div>
       </section>
 
+      <section id="teacherStatsSection" class="sidebar-section teacher-stats-section hidden">
+        <div class="section-title-row">
+          <h2 class="section-title">学生问题统计</h2>
+          <span id="teacherStatsMeta" class="section-meta">未加载</span>
+        </div>
+        <div class="teacher-stats-grid">
+          <div class="teacher-stat-card">
+            <span>问题总数</span>
+            <strong id="teacherStatsQuestionCount">0</strong>
+          </div>
+          <div class="teacher-stat-card">
+            <span>学生数</span>
+            <strong id="teacherStatsStudentCount">0</strong>
+          </div>
+          <div class="teacher-stat-card">
+            <span>会话数</span>
+            <strong id="teacherStatsSessionCount">0</strong>
+          </div>
+        </div>
+        <div class="teacher-stats-actions">
+          <button id="refreshTeacherStatsBtn" type="button" class="ghost-side-btn">
+            <i class="ri-refresh-line"></i>
+            <span>刷新统计</span>
+          </button>
+          <button id="exportTeacherStatsBtn" type="button" class="ghost-side-btn">
+            <i class="ri-file-excel-2-line"></i>
+            <span>导出表格</span>
+          </button>
+        </div>
+        <div class="teacher-stats-block">
+          <div class="teacher-stats-block-title">高频问题</div>
+          <ul id="teacherTopQuestions" class="teacher-question-list"></ul>
+        </div>
+        <div class="teacher-stats-block">
+          <div class="teacher-stats-block-title">近期提问</div>
+          <ul id="teacherRecentQuestions" class="teacher-question-list"></ul>
+        </div>
+      </section>
+
       <section class="sidebar-section install-section">
         <div class="section-title-row">
           <h2 class="section-title">安卓应用</h2>
