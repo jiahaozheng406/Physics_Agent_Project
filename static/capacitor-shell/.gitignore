@@ -1,0 +1,12 @@
+node_modules/
+www/
+dist/
+.gradle-user-home/
+runtime-config.json
+.idea/
+android/.gradle/
+android/local.properties
+android/captures/
+android/build/
+android/app/build/
+*.iml

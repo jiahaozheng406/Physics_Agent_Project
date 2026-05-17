@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">理宝</string>
+    <string name="title_activity_main">理宝</string>
+    <string name="package_name">com.physicsagent.mobile</string>
+    <string name="custom_url_scheme">com.physicsagent.mobile</string>
+</resources>

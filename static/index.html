@@ -1,8 +1,12 @@
 ﻿<!DOCTYPE html>
 <html lang="zh-CN">
-<head>
+  <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f2c43" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>多模态物理实验教学 Agent</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,21 +19,122 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="manifest" href="./manifest.webmanifest?v=20260424-2" />
+  <link rel="icon" href="./app-icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="./app-icon-192.png" />
+  <link rel="stylesheet" href="./static/style.css?v=20260424-2" />
 </head>
 
 <body>
   <div class="bg-orb orb-a"></div>
   <div class="bg-orb orb-b"></div>
 
+  <div id="authGate" class="auth-gate hidden" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
+    <div class="auth-shell">
+      <section class="auth-hero">
+        <span class="auth-kicker">Physics Agent</span>
+        <h2 id="authGateTitle">登录</h2>
+        <p class="auth-hero-copy">手机号验证码或体验模式进入。</p>
+      </section>
+
+      <section class="auth-panel glass-panel">
+        <div class="auth-panel-head">
+          <div>
+            <span class="auth-panel-eyebrow">快速进入</span>
+            <h3>选择身份后登录</h3>
+          </div>
+          <div class="auth-panel-head-actions">
+            <button id="authQuickLogoutBtn" type="button" class="auth-quick-logout-btn hidden">
+              <i class="ri-logout-box-r-line"></i>
+              <span>退出登录</span>
+            </button>
+            <div id="authProviderStatus" class="auth-provider-status">正在检查登录入口配置</div>
+            <button id="closeAuthGateBtn" type="button" class="auth-close-btn hidden" aria-label="返回工作区">
+              <i class="ri-close-line"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="authRoleSwitch" class="auth-role-switch" role="tablist" aria-label="身份角色">
+          <button type="button" class="auth-role-btn active" data-auth-role="teacher" aria-selected="true">教师端</button>
+          <button type="button" class="auth-role-btn" data-auth-role="student" aria-selected="false">学生端</button>
+        </div>
+
+        <label class="auth-field">
+          <span>姓名（可选）</span>
+          <input id="authDisplayNameInput" type="text" maxlength="24" placeholder="例如：王老师" />
+        </label>
+
+        <label class="auth-field">
+          <span>手机号</span>
+          <input id="authPhoneInput" type="tel" inputmode="numeric" maxlength="18" autocomplete="tel" placeholder="请输入 11 位手机号" />
+        </label>
+
+        <div class="auth-code-row">
+          <label class="auth-field auth-field-grow">
+            <span>短信验证码</span>
+            <input id="authCodeInput" type="text" inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="请输入验证码" />
+          </label>
+          <button id="authSendCodeBtn" type="button" class="auth-code-btn">获取验证码</button>
+        </div>
+
+        <button id="authPhoneLoginBtn" type="button" class="auth-primary-btn">
+          <i class="ri-smartphone-line"></i>
+          <span>手机号验证码登录</span>
+        </button>
+
+        <div id="authPhoneHint" class="auth-helper-text">
+          教师手机号需先在后台白名单登记后，才能进入教师端；未登记手机号仅可进入学生端。
+        </div>
+
+        <div id="authDebugCodeNotice" class="auth-debug-code hidden"></div>
+
+        <div class="auth-provider-divider">
+          <span>其他方式</span>
+        </div>
+
+        <div class="auth-provider-grid">
+          <button id="authWechatBtn" type="button" class="auth-provider-btn auth-provider-btn-wechat" data-auth-provider="wechat">
+            <i class="ri-wechat-fill"></i>
+            <span>微信身份入口</span>
+          </button>
+          <button id="authQqBtn" type="button" class="auth-provider-btn auth-provider-btn-qq" data-auth-provider="qq">
+            <i class="ri-qq-fill"></i>
+            <span>QQ 身份入口</span>
+          </button>
+          <button id="authDemoBtn" type="button" class="auth-provider-btn auth-provider-btn-demo" data-auth-provider="demo">
+            <i class="ri-user-star-line"></i>
+            <span>体验模式（免验证码）</span>
+          </button>
+        </div>
+
+        <div id="authProviderHint" class="auth-provider-hint">
+          微信 / QQ 入口后续接入；当前可先用手机号或体验模式。
+        </div>
+
+        <div id="authConnectionCard" class="auth-connection-card hidden">
+          <div id="authConnectionText" class="auth-connection-text">服务地址：未设置</div>
+          <button id="authConfigureApiBaseBtn" type="button" class="auth-connection-btn">
+            <i class="ri-links-line"></i>
+            <span>设置地址</span>
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+
   <div class="app-shell">
     <aside class="sidebar glass-panel">
       <div class="brand-row">
         <div class="brand-icon"><i class="ri-flask-line"></i></div>
-        <div>
+        <div class="brand-copy">
           <h1 class="brand-title">Physics Agent</h1>
           <p class="brand-subtitle">多模态物理实验教学</p>
         </div>
+        <button id="openAuthGateBtn" type="button" class="brand-auth-btn hidden">
+          <i class="ri-user-line"></i>
+          <span>登录</span>
+        </button>
       </div>
 
       <div class="quick-action-row">
@@ -43,14 +148,82 @@
         </button>
       </div>
 
-      <section class="sidebar-section upload-section">
+      <section id="userWorkspaceSection" class="sidebar-section user-workspace-section hidden">
+        <div class="section-title-row">
+          <h2 class="section-title">当前身份</h2>
+          <span id="userRoleBadge" class="section-meta user-role-chip">未登录</span>
+        </div>
+
+        <div class="user-profile-card">
+          <div class="user-profile-main">
+            <div id="userAvatar" class="user-avatar">PA</div>
+            <div class="user-profile-copy">
+              <div id="userDisplayName" class="user-display-name">未登录</div>
+              <div id="userProviderMeta" class="user-provider-meta">请先完成身份验证</div>
+            </div>
+          </div>
+          <button id="logoutBtn" type="button" class="ghost-side-btn user-logout-btn">退出登录</button>
+        </div>
+
+        <div id="teacherIsolationHint" class="install-hint hidden">
+          教师上传的外部知识库会进入教师专属检索域，学生端不会看到，也不能通过 Agent 间接问出。
+        </div>
+        <div id="studentIsolationHint" class="install-hint hidden">
+          学生端默认只访问学生会话内容与实验上下文，不暴露教师端资料与其检索结果。
+        </div>
+      </section>
+
+      <section class="sidebar-section install-section">
+        <div class="section-title-row">
+          <h2 class="section-title">安卓应用</h2>
+          <span class="section-meta">PWA 安装</span>
+        </div>
+        <button id="installAppBtn" type="button" class="ghost-side-btn install-app-btn">
+          <i class="ri-android-line"></i>
+          <span>安装到安卓</span>
+        </button>
+        <div class="install-hint">支持添加到安卓主屏，安装后可像独立应用一样全屏打开。</div>
+      </section>
+
+      <section id="mobileConnectionSection" class="sidebar-section install-section hidden">
+        <div class="section-title-row">
+          <h2 class="section-title">连接设置</h2>
+          <span class="section-meta">服务地址</span>
+        </div>
+        <button id="configureApiBaseBtn" type="button" class="ghost-side-btn install-app-btn">
+          <i class="ri-links-line"></i>
+          <span>设置地址</span>
+        </button>
+        <div id="apiBaseHint" class="install-hint">服务地址未设置。</div>
+      </section>
+
+      <section id="modelKeySection" class="sidebar-section install-section hidden">
+        <div class="section-title-row">
+          <h2 class="section-title">模型密钥</h2>
+          <span class="section-meta">DashScope</span>
+        </div>
+        <button id="configureModelApiKeyBtn" type="button" class="ghost-side-btn install-app-btn">
+          <i class="ri-key-2-line"></i>
+          <span>设置密钥</span>
+        </button>
+        <div id="modelApiKeyHint" class="install-hint">当前未设置。</div>
+      </section>
+
+      <section id="uploadSection" class="sidebar-section upload-section">
         <div class="section-title-row">
           <h2 class="section-title">文件上传</h2>
           <div class="section-actions">
-            <span class="section-meta">PDF / DOCX / 图片 / 音频</span>
+            <span id="uploadSectionMeta" class="section-meta">PDF / DOCX / 图片 / 音频 / 拍照</span>
             <button id="clearDocsBtn" type="button" class="text-btn">清空文档</button>
           </div>
         </div>
+
+        <div id="uploadScopeSwitch" class="upload-scope-switch hidden" role="tablist" aria-label="上传范围">
+          <button type="button" class="upload-scope-btn active" data-upload-scope="session" aria-selected="true">当前对话</button>
+          <button type="button" class="upload-scope-btn" data-upload-scope="teacher_kb" aria-selected="false">教师知识库</button>
+        </div>
+
+        <div id="uploadRoleHint" class="upload-role-hint hidden"></div>
 
         <label id="uploadDropzone" class="upload-dropzone" for="fileInput">
           <i class="ri-upload-cloud-2-line"></i>
@@ -86,6 +259,16 @@
             <span>课外实验仿真</span>
           </span>
           <i class="ri-layout-right-2-line"></i>
+        </button>
+      </section>
+
+      <section class="sidebar-section data-lab-trigger-section">
+        <button id="openDataLabBtn" type="button" class="phet-side-btn data-lab-side-btn" aria-haspopup="dialog" aria-controls="dataLabModal">
+          <span class="phet-side-btn-label">
+            <i class="ri-line-chart-line"></i>
+            <span>实验数据作图</span>
+          </span>
+          <i class="ri-function-line"></i>
         </button>
       </section>
 
@@ -127,15 +310,41 @@
           </div>
           <div class="status-pills">
             <span id="modelBadge" class="pill pill-blue">qwen-plus</span>
-            <span class="pill pill-green">在线</span>
+            <span id="networkBadge" class="pill pill-green">在线</span>
           </div>
         </header>
 
         <section id="chatMessages" class="chat-messages"></section>
+        <aside id="quickJumpPanel" class="quick-jump-panel hidden" aria-label="快捷跳转">
+          <div id="quickJumpList" class="quick-jump-list"></div>
+        </aside>
 
         <form id="chatForm" class="chat-input-wrap" autocomplete="off">
           <textarea id="chatInput" rows="1" data-max-height="148" placeholder="输入你的问题，支持 Markdown / LaTeX（Enter 发送，Shift+Enter 换行）"></textarea>
           <div class="chat-action-group">
+            <div class="chat-media-entry">
+              <button
+                id="chatCameraBtn"
+                type="button"
+                class="secondary-btn action-btn hidden"
+                aria-label="拍照或导入图片"
+                title="拍照或导入图片"
+                aria-haspopup="menu"
+                aria-expanded="false"
+              >
+                <i class="ri-camera-3-line"></i>
+              </button>
+              <div id="nativeMediaActions" class="native-media-actions hidden" role="menu" aria-label="图片来源选择">
+                <button id="takePhotoBtn" type="button" class="native-media-btn native-media-btn-primary" role="menuitem">
+                  <i class="ri-camera-line"></i>
+                  <span>拍照提问</span>
+                </button>
+                <button id="pickPhotoBtn" type="button" class="native-media-btn native-media-btn-secondary" role="menuitem">
+                  <i class="ri-image-add-line"></i>
+                  <span>相册导入</span>
+                </button>
+              </div>
+            </div>
             <button id="recordBtn" type="button" class="secondary-btn action-btn" aria-label="录音" title="开始录音">
               <i class="ri-mic-line"></i>
             </button>
@@ -145,96 +354,183 @@
           </div>
         </form>
       </main>
-
-      <aside id="phetWorkspace" class="phet-workspace glass-panel hidden" aria-label="课外实验仿真工作区">
-        <div class="phet-workspace-inner">
-          <header class="phet-header">
-            <div>
-              <h2 class="phet-title">课外实验仿真</h2>
-            </div>
-            <button id="closePhetWorkspaceBtn" type="button" class="icon-btn" aria-label="关闭课外实验仿真">
-              <i class="ri-close-line"></i>
-            </button>
-          </header>
-
-          <div id="phetTopicTabs" class="phet-topic-tabs"></div>
-
-          <div class="phet-body">
-            <aside class="phet-directory">
-              <div id="phetCatalogList" class="phet-catalog-list"></div>
-            </aside>
-
-            <section class="phet-detail">
-              <div id="phetEmptyState" class="phet-empty-state">
-                <div class="phet-empty-icon"><i class="ri-flask-line"></i></div>
-                <h3>选择一个课外实验</h3>
-                <p>右侧将呈现实验界面、原理概述、关键观测维度与界面引导。</p>
-              </div>
-
-              <div id="phetDetailContent" class="phet-detail-content hidden">
-                <div class="phet-detail-header">
-                  <div>
-                    <div class="phet-detail-title-row">
-                      <h3 id="phetDetailTitle"></h3>
-                      <span id="phetLanguageBadge" class="phet-language-badge"></span>
-                    </div>
-                    <p id="phetDetailMeta" class="phet-detail-meta"></p>
-                  </div>
-                  <div class="phet-detail-links">
-                    <a id="phetOpenNewWindowLink" class="phet-link-btn phet-link-btn-secondary" href="#" target="_blank" rel="noreferrer">新窗口打开仿真</a>
-                  </div>
-                </div>
-
-                <div id="phetFrameNotice" class="phet-frame-notice hidden">
-                  当前浏览器可能阻止了嵌入式仿真，可通过上方按钮在新窗口继续观察。
-                </div>
-
-                <div class="phet-frame-wrap">
-                  <div id="phetFrameLoading" class="phet-frame-loading">正在载入仿真界面...</div>
-                  <iframe id="phetFrame" class="phet-frame" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-                </div>
-
-                <div class="phet-ask-panel">
-                  <div class="phet-ask-head">
-                    <label for="phetQuestionInput">结合当前实验提问</label>
-                  </div>
-                  <div class="phet-ask-row">
-                    <textarea id="phetQuestionInput" rows="3" data-max-height="136" placeholder="例如：这个实验中最值得优先控制和观察的变量是什么？"></textarea>
-                    <button id="phetAskBtn" type="button" class="phet-ask-btn">结合当前实验提问</button>
-                  </div>
-                </div>
-
-                <div class="phet-detail-scroll">
-                  <div class="phet-info-grid">
-                    <article class="phet-info-card">
-                      <h4>实验原理概述</h4>
-                      <p id="phetIntroText" class="phet-intro-text"></p>
-                    </article>
-                    <article class="phet-info-card">
-                      <h4>关键观测维度</h4>
-                      <div id="phetObservationList" class="phet-text-list"></div>
-                    </article>
-                    <article class="phet-info-card">
-                      <h4>研究问题建议</h4>
-                      <div id="phetQuestionHintList" class="phet-suggestion-list"></div>
-                    </article>
-                    <article class="phet-info-card">
-                      <h4>界面引导</h4>
-                      <div id="phetInterfaceGuidanceList" class="phet-text-list"></div>
-                    </article>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-        </div>
-      </aside>
     </div>
   </div>
 
-  <aside id="quickJumpPanel" class="quick-jump-panel hidden" aria-label="快捷跳转">
-    <div id="quickJumpList" class="quick-jump-list"></div>
-  </aside>
+  <div id="phetWorkspace" class="modal-overlay phet-catalog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="phetCatalogTitle">
+    <aside class="phet-workspace glass-panel" aria-label="课外实验仿真工作区">
+      <div class="phet-workspace-inner">
+        <header class="phet-header">
+          <div>
+            <h2 id="phetCatalogTitle" class="phet-title">课外实验仿真</h2>
+            <p class="phet-subtitle">从主题目录中选择实验，进入独立实验页后再进行观察、提问与仿真操作。</p>
+          </div>
+          <button id="closePhetWorkspaceBtn" type="button" class="icon-btn" aria-label="关闭课外实验仿真">
+            <i class="ri-close-line"></i>
+          </button>
+        </header>
+
+        <section class="phet-hero-card">
+          <div class="phet-hero-copy">
+            <span class="phet-hero-badge">64 个课外实验</span>
+            <h3>先选实验，再进入全屏实验页</h3>
+            <p>每个实验都会以独立页面展开，里面包含仿真窗口、原理概述、关键观测维度和研究问题建议，更适合手机端连续浏览。</p>
+          </div>
+        </section>
+
+        <div id="phetTopicTabs" class="phet-topic-tabs"></div>
+
+        <div class="phet-body">
+          <aside class="phet-directory phet-directory-full">
+            <div id="phetCatalogList" class="phet-catalog-list"></div>
+          </aside>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="phetDetailModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="phetDetailTitle">
+    <div class="phet-detail-modal glass-panel">
+      <div class="phet-detail-modal-header">
+        <div class="phet-detail-modal-main">
+          <button id="phetBackToCatalogBtn" type="button" class="lab-back-btn" aria-label="返回课外实验目录">
+            <i class="ri-arrow-left-line"></i>
+            <span>返回实验目录</span>
+          </button>
+          <div>
+            <div class="phet-detail-title-row">
+              <h3 id="phetDetailTitle"></h3>
+              <span id="phetLanguageBadge" class="phet-language-badge"></span>
+            </div>
+            <p id="phetDetailMeta" class="phet-detail-meta"></p>
+          </div>
+        </div>
+        <div class="phet-detail-links">
+          <a id="phetOpenNewWindowLink" class="phet-link-btn phet-link-btn-secondary" href="#" target="_blank" rel="noreferrer">新窗口打开仿真</a>
+          <button id="closePhetDetailBtn" type="button" class="icon-btn" aria-label="关闭课外实验详情">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="phetEmptyState" class="phet-empty-state hidden">
+        <div class="phet-empty-icon"><i class="ri-flask-line"></i></div>
+        <h3>请选择一个课外实验</h3>
+        <p>返回实验目录后点击任一实验卡片，即可进入对应的独立实验页。</p>
+      </div>
+
+      <div id="phetDetailContent" class="phet-detail-content hidden">
+        <div id="phetFrameNotice" class="phet-frame-notice hidden">
+          当前浏览器可能阻止了嵌入式仿真，可通过上方按钮在新窗口继续观察。
+        </div>
+
+        <div class="phet-frame-wrap">
+          <div id="phetFrameLoading" class="phet-frame-loading">正在载入仿真界面...</div>
+          <iframe id="phetFrame" class="phet-frame" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+
+        <div class="phet-ask-panel">
+          <div class="phet-ask-head">
+            <label for="phetQuestionInput">结合当前实验提问</label>
+          </div>
+          <div class="phet-ask-row">
+            <textarea id="phetQuestionInput" rows="3" data-max-height="136" placeholder="例如：这个实验中最值得优先控制和观察的变量是什么？"></textarea>
+            <button id="phetAskBtn" type="button" class="phet-ask-btn">结合当前实验提问</button>
+          </div>
+        </div>
+
+        <div class="phet-detail-scroll">
+          <div class="phet-info-grid">
+            <article class="phet-info-card">
+              <h4>实验原理概述</h4>
+              <p id="phetIntroText" class="phet-intro-text"></p>
+            </article>
+            <article class="phet-info-card">
+              <h4>关键观测维度</h4>
+              <div id="phetObservationList" class="phet-text-list"></div>
+            </article>
+            <article class="phet-info-card">
+              <h4>研究问题建议</h4>
+              <div id="phetQuestionHintList" class="phet-suggestion-list"></div>
+            </article>
+            <article class="phet-info-card">
+              <h4>界面引导</h4>
+              <div id="phetInterfaceGuidanceList" class="phet-text-list"></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="labDetailModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="labDetailTitle">
+    <div class="lab-detail-modal glass-panel">
+      <div class="lab-detail-header">
+        <div class="lab-detail-header-main">
+          <button id="labDetailBackBtn" type="button" class="lab-back-btn" aria-label="返回实验库">
+            <i class="ri-arrow-left-line"></i>
+            <span>返回实验库</span>
+          </button>
+          <div class="lab-detail-heading">
+            <span id="labDetailCategory" class="lab-detail-category">课内实验详情</span>
+            <h3 id="labDetailTitle">实验详情</h3>
+            <p id="labDetailBrief" class="lab-detail-brief"></p>
+          </div>
+        </div>
+        <div class="lab-detail-header-actions">
+          <button id="labDetailAskIntroBtn" type="button" class="phet-link-btn">让 Agent 讲解原理</button>
+          <button id="labDetailAskQuizBtn" type="button" class="phet-link-btn phet-link-btn-secondary">解析检验题</button>
+          <button id="closeLabDetailBtn" type="button" class="icon-btn" aria-label="关闭实验详情">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="labDetailNav" class="lab-detail-nav">
+        <button type="button" class="lab-detail-nav-btn active" data-lab-section="overview">实验介绍</button>
+        <button type="button" class="lab-detail-nav-btn" data-lab-section="goals">学习重点</button>
+        <button type="button" class="lab-detail-nav-btn" data-lab-section="quiz">检验题目</button>
+        <button type="button" class="lab-detail-nav-btn" data-lab-section="simulation">交互仿真</button>
+      </div>
+
+      <div class="lab-detail-body">
+        <section class="lab-detail-main">
+          <article id="labSectionOverview" class="lab-detail-card">
+            <h4>实验介绍</h4>
+            <p id="labDetailIntroText" class="lab-detail-rich-text"></p>
+          </article>
+
+          <article id="labSectionGoals" class="lab-detail-card">
+            <h4>学习重点</h4>
+            <div id="labDetailOutcomeList" class="lab-detail-list"></div>
+          </article>
+
+          <article id="labSectionQuiz" class="lab-detail-card">
+            <h4>检验题目</h4>
+            <ol id="labDetailQuizList" class="lab-detail-ordered"></ol>
+          </article>
+        </section>
+
+        <aside class="lab-detail-side">
+          <article id="labSectionFormula" class="lab-detail-card lab-detail-card-accent">
+            <h4>核心公式与方法</h4>
+            <p id="labDetailFormula" class="lab-detail-rich-text"></p>
+          </article>
+
+          <article id="labSectionTips" class="lab-detail-card">
+            <h4>操作提醒</h4>
+            <div id="labDetailTipList" class="lab-detail-list"></div>
+          </article>
+
+          <article id="labSectionSimulation" class="lab-detail-card">
+            <h4>交互仿真</h4>
+            <p id="labDetailSimHint" class="lab-detail-rich-text"></p>
+            <button id="labDetailSimBtn" type="button" class="lab-detail-sim-btn">进入交互仿真</button>
+          </article>
+        </aside>
+      </div>
+    </div>
+  </div>
 
   <div id="simulationModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="simulationModalTitle">
     <div class="simulation-modal glass-panel">
@@ -259,7 +555,13 @@
             <label for="simLambdaRange">激光波长 λ</label>
             <span id="simLambdaValue">632.8 nm</span>
           </div>
-          <input id="simLambdaRange" type="range" min="400" max="700" step="0.1" value="632.8" />
+          <div class="sim-control-input-row">
+            <input id="simLambdaRange" type="range" min="400" max="700" step="0.1" value="632.8" />
+            <label id="simLambdaNumberWrap" class="sim-control-number-box hidden" for="simLambdaNumber">
+              <input id="simLambdaNumber" type="number" min="400" max="700" step="0.1" value="632.8" inputmode="decimal" />
+              <span id="simLambdaUnit">nm</span>
+            </label>
+          </div>
         </div>
 
         <div class="control-row">
@@ -267,7 +569,13 @@
             <label for="simDisplacementRange">微动镜位移 d (相对零位)</label>
             <span id="simDisplacementValue">+0.000 μm</span>
           </div>
-          <input id="simDisplacementRange" type="range" min="-8" max="8" step="0.01" value="0" />
+          <div class="sim-control-input-row">
+            <input id="simDisplacementRange" type="range" min="-8" max="8" step="0.01" value="0" />
+            <label id="simDisplacementNumberWrap" class="sim-control-number-box hidden" for="simDisplacementNumber">
+              <input id="simDisplacementNumber" type="number" min="-8" max="8" step="0.01" value="0" inputmode="decimal" />
+              <span id="simDisplacementUnit">μm</span>
+            </label>
+          </div>
         </div>
 
         <div class="sim-metrics">
@@ -281,11 +589,158 @@
     </div>
   </div>
 
+  <div id="dataLabModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dataLabTitle">
+    <div class="data-lab-modal glass-panel">
+      <div class="modal-header data-lab-header">
+        <div>
+          <h3 id="dataLabTitle">实验数据拟合</h3>
+          <p>输入一个点，画一个点；可切换拟合曲线类型。</p>
+        </div>
+        <div class="data-lab-header-actions">
+          <button id="dataLabClearPointsBtn" type="button" class="ghost-side-btn data-lab-clear-btn">清空点</button>
+          <button id="dataLabApplyBtn" type="button" class="invoke-agent-btn">重新拟合</button>
+          <button id="closeDataLabBtn" type="button" class="icon-btn" aria-label="关闭实验数据分析窗口">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="data-lab-body">
+        <section class="data-lab-form">
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>基础设置</h4>
+              <span class="data-lab-card-meta">单位与拟合类型</span>
+            </div>
+            <div class="data-lab-grid data-lab-grid-simple">
+              <label class="data-lab-field">
+                <span>横坐标单位</span>
+                <input id="dataLabXUnit" type="text" placeholder="例如：N" />
+              </label>
+              <label class="data-lab-field">
+                <span>纵坐标单位</span>
+                <input id="dataLabYUnit" type="text" placeholder="例如：mm" />
+              </label>
+              <label class="data-lab-field">
+                <span>拟合曲线</span>
+                <select id="dataLabFitType">
+                  <option value="linear">线性</option>
+                  <option value="quadratic">二次曲线</option>
+                  <option value="exponential">指数曲线</option>
+                  <option value="power">幂函数</option>
+                  <option value="logarithmic">对数曲线</option>
+                </select>
+              </label>
+            </div>
+            <div class="data-lab-note">
+              添加一个点就会自动重绘；若拟合类型不满足数据条件，结果区会直接提示原因。
+            </div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>逐点输入</h4>
+              <span class="data-lab-card-meta">依次输入 <code>x</code> 与 <code>y</code></span>
+            </div>
+            <div class="data-lab-grid data-lab-point-entry">
+              <label class="data-lab-field">
+                <span>X</span>
+                <input id="dataLabPointXInput" type="text" inputmode="decimal" placeholder="例如：0.50" />
+              </label>
+              <label class="data-lab-field">
+                <span>Y</span>
+                <input id="dataLabPointYInput" type="text" inputmode="decimal" placeholder="例如：1.23" />
+              </label>
+            </div>
+            <button id="dataLabAddPointBtn" type="button" class="invoke-agent-btn data-lab-add-btn">添加点并重绘</button>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>不确定度</h4>
+              <span class="data-lab-card-meta">A 类自动，B 类手动</span>
+            </div>
+            <div class="data-lab-grid data-lab-grid-simple">
+              <label class="data-lab-field">
+                <span>横坐标 B 类</span>
+                <input id="dataLabXBUncertainty" class="data-lab-uncertainty-input" type="text" inputmode="decimal" placeholder="默认 0" />
+              </label>
+              <label class="data-lab-field">
+                <span>纵坐标 B 类</span>
+                <input id="dataLabYBUncertainty" class="data-lab-uncertainty-input" type="text" inputmode="decimal" placeholder="默认 0" />
+              </label>
+            </div>
+            <div class="data-lab-note">
+              A 类不确定度按当前输入的 <code>x</code>、<code>y</code> 数据列自动统计；总不确定度按 <code>sqrt(uA^2 + uB^2)</code> 合成。若当前列并非重复测量序列，可将 A 类结果理解为离散度参考。
+            </div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>已输入坐标点</h4>
+              <span id="dataLabPointCount" class="data-lab-card-meta">0 个点</span>
+            </div>
+            <div id="dataLabPointList" class="data-lab-point-list"></div>
+          </article>
+        </section>
+
+        <section class="data-lab-output">
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>拟合图像</h4>
+              <span id="dataLabPlotCaption" class="data-lab-card-meta">添加坐标点后自动更新</span>
+            </div>
+            <div id="dataLabPlot" class="data-lab-plot"></div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>拟合结果</h4>
+            </div>
+            <div id="dataLabResultSummary" class="data-lab-summary"></div>
+          </article>
+        </section>
+      </div>
+
+      <div id="dataLabStatus" class="data-lab-status">已载入示例点，可直接修改后重新绘图。</div>
+    </div>
+  </div>
+
+  <div id="webCameraModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="webCameraTitle">
+    <div class="web-camera-modal glass-panel">
+      <div class="web-camera-header">
+        <div>
+          <h3 id="webCameraTitle">拍照提问</h3>
+          <p>网页端可直接调用浏览器摄像头，拍摄后自动作为下一条图片提问。</p>
+        </div>
+        <button id="closeWebCameraBtn" type="button" class="icon-btn" aria-label="关闭网页拍照弹窗">
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+      <div class="web-camera-stage">
+        <video id="webCameraVideo" class="web-camera-video" autoplay playsinline muted></video>
+        <canvas id="webCameraCanvas" class="hidden"></canvas>
+        <div id="webCameraPlaceholder" class="web-camera-placeholder">
+          <i class="ri-camera-lens-line"></i>
+          <span>正在准备摄像头画面…</span>
+        </div>
+      </div>
+      <div id="webCameraStatus" class="web-camera-status">请允许浏览器访问摄像头，然后点击下方按钮拍照。</div>
+      <div class="web-camera-actions">
+        <button id="webCameraAlbumBtn" type="button" class="sim-action-btn sim-action-btn-secondary">改为相册导入</button>
+        <button id="webCameraCaptureBtn" type="button" class="sim-action-btn">拍照并使用</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toastRoot" class="hidden" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="./static/mobile-config.js?v=20260424-2"></script>
+  <script src="./static/lite-backend.js?v=20260424-2"></script>
+  <script src="./static/app.js?v=20260424-2"></script>
 </body>
 </html>

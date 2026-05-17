@@ -65,7 +65,7 @@ def build_rag_context(
         return ""
 
     return (
-        "Knowledge base from user-uploaded documents. "
+        "Knowledge base from session documents and preloaded external references. "
         "If used, cite the source id exactly like [Source N].\n\n"
         + "\n\n---\n\n".join(blocks)
     )

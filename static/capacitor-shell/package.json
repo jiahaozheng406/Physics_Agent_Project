@@ -1,0 +1,20 @@
+{
+  "name": "physics-agent-capacitor-shell",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Physics Agent Capacitor Android shell",
+  "scripts": {
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "prepare:android": "node scripts/prepare-android-env.mjs",
+    "sync:android": "npm run prepare:web && npm run prepare:android && npx cap sync android",
+    "open:android": "npm run sync:android && node scripts/open-android-studio.mjs",
+    "build:apk": "npm run sync:android && node scripts/run-gradle-build.mjs assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/camera": "^8.0.2",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0"
+  }
+}

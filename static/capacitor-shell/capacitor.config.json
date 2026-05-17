@@ -1,0 +1,19 @@
+{
+  "appId": "com.physicsagent.mobile",
+  "appName": "理宝",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true,
+    "allowNavigation": [
+      "dashscope.aliyuncs.com",
+      "*.aliyuncs.com",
+      "phet.colorado.edu",
+      "*.phet.colorado.edu",
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "cdn.jsdelivr.net",
+      "cdn.tailwindcss.com"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "appMode": "capacitor",
+  "backendMode": "lite",
+  "apiBaseUrl": "",
+  "defaultApiBaseUrl": "",
+  "apiBaseUrlVersion": "",
+  "lockApiBaseUrl": false,
+  "showConnectionSettings": false,
+  "showModelKeySettings": true,
+  "modelApiKey": "",
+  "disableServiceWorker": true
+}
