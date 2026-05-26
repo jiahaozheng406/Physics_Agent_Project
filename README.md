@@ -136,22 +136,41 @@ Instead of direct answers:
 
 ```
 Physics_Agent_Project/
-├── backend/
-│   ├── main.py               # API gateway & routes (989 lines)
-│   ├── models.py             # DashScope model routing (121 lines)
-│   ├── rag.py                # RAG chunking + retrieval (71 lines)
-│   ├── storage.py            # SQLite persistence (726 lines)
-│   ├── phet_catalog.py       # PhET catalog & teaching prompts (3033 lines)
-│   └── phet_ui_overrides.py  # Simulation UI profiles (2568 lines)
-├── static/
-│   ├── index.html            # SPA entry (295 lines)
-│   ├── app.js                # Frontend logic (4688 lines)
-│   └── style.css             # Glassmorphism styles (2457 lines)
-├── data/                      # Runtime data (gitignored)
-├── uploads/                   # User uploads (gitignored)
-├── requirements.txt
-├── .env                       # API key (gitignored)
-└── README.md
+|-- backend/
+|   |-- __init__.py
+|   |-- main.py                    # FastAPI gateway, routes, auth, chat streaming
+|   |-- models.py                  # DashScope text/vision/audio model routing
+|   |-- rag.py                     # Document chunking and retrieval helpers
+|   |-- storage.py                 # SQLite persistence for sessions, messages, docs
+|   |-- phet_catalog.py            # PhET simulation catalog and teaching prompts
+|   |-- phet_ui_overrides.py       # Per-simulation UI guidance profiles
+|   |-- start_frontend.ps1         # Windows launcher helper
+|   |-- PROJECT_MODULE_ARCHITECTURE.md
+|   `-- image/                     # Architecture images used by backend docs
+|-- static/
+|   |-- index.html                 # Single-page app shell
+|   |-- app.js                     # Chat, upload, simulations, data lab UI logic
+|   |-- style.css                  # Glassmorphism and responsive styles
+|   |-- lite-backend.js            # Browser-side lite backend for mobile shell
+|   |-- mobile-config.js           # Mobile connection/runtime defaults
+|   |-- manifest.webmanifest       # PWA manifest
+|   |-- sw.js                      # Service worker
+|   |-- offline.html               # Offline fallback page
+|   |-- app-icon-192.png
+|   |-- app-icon-512.png
+|   `-- capacitor-shell/           # Capacitor Android wrapper and build scripts
+|-- data/                          # Runtime SQLite/cache data, not for commit
+|-- uploads/                       # Runtime user uploads, not for commit
+|-- image/                         # Project-level images and assets
+|-- .github/                       # GitHub workflow and repository metadata
+|-- requirements.txt               # Python dependencies
+|-- system_prompt.md               # Reference system prompt specification
+|-- AGENTS.md                      # Agent collaboration rules
+|-- CLAUDE.md                      # Developer handoff notes
+|-- PROJECT_ANALYSIS.md            # Project state report
+|-- AGENT_OPTIMIZATION_REPORT.md   # Gap analysis and next steps
+|-- .env                           # Local API key/config, not for commit
+`-- README.md
 ```
 
 ### Database Schema
@@ -310,22 +329,41 @@ uvicorn backend.main:app --reload --port 8000
 
 ```
 Physics_Agent_Project/
-├── backend/
-│   ├── main.py               # API 网关与路由 (989 行)
-│   ├── models.py             # DashScope 模型路由 (121 行)
-│   ├── rag.py                # RAG 分块与检索 (71 行)
-│   ├── storage.py            # SQLite 持久化 (726 行)
-│   ├── phet_catalog.py       # PhET 实验目录与教学提示词 (3033 行)
-│   └── phet_ui_overrides.py  # 仿真界面画像 (2568 行)
-├── static/
-│   ├── index.html            # 单页应用入口 (295 行)
-│   ├── app.js                # 前端核心逻辑 (4688 行)
-│   └── style.css             # 毛玻璃样式 (2457 行)
-├── data/                      # 运行时数据 (已 gitignore)
-├── uploads/                   # 用户上传文件 (已 gitignore)
-├── requirements.txt
-├── .env                       # API Key (已 gitignore)
-└── README.md
+|-- backend/
+|   |-- __init__.py
+|   |-- main.py                    # FastAPI 网关、路由、鉴权与流式对话
+|   |-- models.py                  # DashScope 文本/视觉/音频模型路由
+|   |-- rag.py                     # 文档分块与检索辅助逻辑
+|   |-- storage.py                 # SQLite 会话、消息与资料持久化
+|   |-- phet_catalog.py            # PhET 仿真实验目录与教学提示词
+|   |-- phet_ui_overrides.py       # 每个仿真的界面引导画像
+|   |-- start_frontend.ps1         # Windows 启动辅助脚本
+|   |-- PROJECT_MODULE_ARCHITECTURE.md
+|   `-- image/                     # 后端架构文档图片
+|-- static/
+|   |-- index.html                 # 单页应用外壳
+|   |-- app.js                     # 对话、上传、仿真、数据作图前端逻辑
+|   |-- style.css                  # 毛玻璃视觉与响应式样式
+|   |-- lite-backend.js            # 移动端壳使用的浏览器侧轻量后端
+|   |-- mobile-config.js           # 移动端连接与运行时默认配置
+|   |-- manifest.webmanifest       # PWA 配置
+|   |-- sw.js                      # Service Worker
+|   |-- offline.html               # 离线兜底页面
+|   |-- app-icon-192.png
+|   |-- app-icon-512.png
+|   `-- capacitor-shell/           # Capacitor Android 外壳与构建脚本
+|-- data/                          # 运行时 SQLite/缓存数据，不提交
+|-- uploads/                       # 运行时用户上传文件，不提交
+|-- image/                         # 项目级图片与资源
+|-- .github/                       # GitHub 工作流与仓库元数据
+|-- requirements.txt               # Python 依赖
+|-- system_prompt.md               # 系统提示词参考规范
+|-- AGENTS.md                      # 智能体协作规则
+|-- CLAUDE.md                      # 开发交接说明
+|-- PROJECT_ANALYSIS.md            # 项目现状报告
+|-- AGENT_OPTIMIZATION_REPORT.md   # 差距分析与后续计划
+|-- .env                           # 本地 API Key/配置，不提交
+`-- README.md
 ```
 
 ### 数据库设计
