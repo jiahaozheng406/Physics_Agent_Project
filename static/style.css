@@ -2640,10 +2640,16 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 600;
   padding: 10px 12px;
   cursor: pointer;
+}
+
+.phet-link-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .phet-link-btn-secondary {
@@ -3270,6 +3276,18 @@ body::before {
   margin: 3px 0 0;
   font-size: 12px;
   color: var(--text-soft);
+}
+
+.simulation-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.simulation-save-btn {
+  min-height: 38px;
 }
 
 .simulation-canvas-wrap {
@@ -5010,6 +5028,22 @@ body::before {
     border-radius: 22px;
     padding: 12px;
     overflow-y: auto;
+  }
+
+  .simulation-modal .modal-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .simulation-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+  }
+
+  .simulation-save-btn {
+    width: 100%;
+    min-height: 42px;
   }
 
   .data-lab-modal {

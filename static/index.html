@@ -445,6 +445,10 @@
           </div>
         </div>
         <div class="phet-detail-links">
+          <button id="phetSaveImageBtn" class="phet-link-btn" type="button">
+            <i class="ri-download-2-line"></i>
+            <span>保存实验图像</span>
+          </button>
           <a id="phetOpenNewWindowLink" class="phet-link-btn phet-link-btn-secondary" href="#" target="_blank" rel="noreferrer">新窗口打开仿真</a>
           <button id="closePhetDetailBtn" type="button" class="icon-btn" aria-label="关闭课外实验详情">
             <i class="ri-close-line"></i>
@@ -578,9 +582,15 @@
           <h3 id="simulationModalTitle">迈克尔逊干涉仪仿真</h3>
           <p>等倾干涉圆环 · 参数联动观察</p>
         </div>
-        <button id="closeSimulationBtn" type="button" class="icon-btn" aria-label="关闭仿真窗口">
-          <i class="ri-close-line"></i>
-        </button>
+        <div class="simulation-header-actions">
+          <button id="saveSimulationImageBtn" type="button" class="phet-link-btn simulation-save-btn">
+            <i class="ri-download-2-line"></i>
+            <span>保存实验图像</span>
+          </button>
+          <button id="closeSimulationBtn" type="button" class="icon-btn" aria-label="关闭仿真窗口">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
       </div>
 
       <div class="simulation-canvas-wrap">

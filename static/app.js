@@ -977,6 +977,7 @@
     phetDetailTitle: document.getElementById("phetDetailTitle"),
     phetLanguageBadge: document.getElementById("phetLanguageBadge"),
     phetDetailMeta: document.getElementById("phetDetailMeta"),
+    phetSaveImageBtn: document.getElementById("phetSaveImageBtn"),
     phetOpenNewWindowLink: document.getElementById("phetOpenNewWindowLink"),
     phetBackToCatalogBtn: document.getElementById("phetBackToCatalogBtn"),
     phetFrameNotice: document.getElementById("phetFrameNotice"),
@@ -1008,6 +1009,7 @@
 
     simulationModal: document.getElementById("simulationModal"),
     closeSimulationBtn: document.getElementById("closeSimulationBtn"),
+    saveSimulationImageBtn: document.getElementById("saveSimulationImageBtn"),
     simulationCanvas: document.getElementById("simulationCanvas"),
     simulationModalTitle: document.getElementById("simulationModalTitle"),
     simulationModalSubtitle: document.querySelector("#simulationModal .modal-header p"),
@@ -1490,6 +1492,10 @@
       els.phetQuestionInput.focus();
     });
 
+    els.phetSaveImageBtn?.addEventListener("click", async () => {
+      await savePhetExperimentImage();
+    });
+
     els.phetAskBtn?.addEventListener("click", async () => {
       await askFromPhetWorkspace();
     });
@@ -1747,6 +1753,9 @@
     });
 
     els.closeSimulationBtn?.addEventListener("click", closeSimulationModal);
+    els.saveSimulationImageBtn?.addEventListener("click", async () => {
+      await saveCurrentSimulationImage();
+    });
     els.simulationModal?.addEventListener("click", (event) => {
       if (event.target === els.simulationModal) {
         closeSimulationModal();
@@ -3661,7 +3670,7 @@
           .then(resolve)
           .catch(reject);
       };
-      video.onerror = () => reject(new Error("鏃犳硶鍒濆鍖栦豢鐪熸埅鍥炬祦"));
+      video.onerror = () => reject(new Error("无法初始化仿真截图流"));
     });
 
     stream.getVideoTracks().forEach((track) => {
@@ -3678,13 +3687,18 @@
     return stream;
   }
 
-  async function capturePhetWorkspaceImage() {
+  async function capturePhetWorkspaceImage(options = {}) {
+    const { failureToast = "", markNotice = true } = options;
     if (!els.phetFrame) return null;
     try {
       await ensurePhetCaptureStream();
     } catch (error) {
-      if (!APP.phet.captureNoticeShown) {
+      if (failureToast) {
+        showToast(typeof failureToast === "function" ? failureToast(error) : failureToast);
+      } else if (!APP.phet.captureNoticeShown) {
         showToast(`本次未获取到当前仿真画面，已按文本模式继续：${error.message}`);
+      }
+      if (markNotice) {
         APP.phet.captureNoticeShown = true;
       }
       return null;
@@ -3721,6 +3735,37 @@
       base64: dataUrl,
       mime: "image/jpeg",
     };
+  }
+
+  async function savePhetExperimentImage() {
+    const sim = findPhetSimulation();
+    if (!sim) {
+      showToast("请先选择一个课外实验");
+      return;
+    }
+
+    await runWithBusyButton(els.phetSaveImageBtn, "保存中", async () => {
+      showToast("浏览器将请求共享当前标签页；系统会自动裁剪并保存实验区域。");
+      const image = await capturePhetWorkspaceImage({
+        markNotice: false,
+        failureToast: (error) => `未能保存当前实验图像：${error.message || "浏览器未授权截图"}`,
+      });
+      if (!image?.base64) return;
+
+      const blob = dataUrlToBlob(image.base64, image.mime || "image/jpeg");
+      const timestamp = formatExportTimestamp();
+      const slug = sanitizeFilenamePart(sim.slug || sim.title_en || "phet-experiment");
+      const filename = `phet-${slug}-${timestamp}.jpg`;
+      await saveBlobWithShareFallback(blob, filename, {
+        shareTitle: `${sim.title_zh || sim.title_en || "课外实验"}图像`,
+        shareText: "课外仿真实验当前画面",
+        shareSuccessToast: "已调起系统分享面板，可直接保存或发送实验图像。",
+        downloadToast: `已开始保存实验图像：${filename}`,
+        preferDownload: true,
+      });
+    }).catch((error) => {
+      showToast(`保存实验图像失败：${error.message || "未知错误"}`);
+    });
   }
 
   async function askFromPhetWorkspace() {
@@ -4880,6 +4925,36 @@
     }
     syncImmersiveState();
   }
+
+  async function saveCurrentSimulationImage() {
+    if (!SIM.isOpen || !els.simulationCanvas) {
+      showToast("请先进入一个交互仿真实验");
+      return;
+    }
+
+    await runWithBusyButton(els.saveSimulationImageBtn, "保存中", async () => {
+      drawCurrentSimulation();
+      const blob = await new Promise((resolve) => els.simulationCanvas.toBlob(resolve, "image/png"));
+      if (!blob) {
+        throw new Error("浏览器未返回可用图像数据");
+      }
+
+      const experiment = experimentMap.get(SIM.currentExpId);
+      const timestamp = formatExportTimestamp();
+      const slug = sanitizeFilenamePart(SIM.currentExpId || "simulation");
+      const filename = `${slug}-${timestamp}.png`;
+      await saveBlobWithShareFallback(blob, filename, {
+        shareTitle: `${experiment?.name || "实验仿真"}图像`,
+        shareText: "交互仿真实验当前画面",
+        shareSuccessToast: "已调起系统分享面板，可直接保存或发送实验图像。",
+        downloadToast: `已开始保存实验图像：${filename}`,
+        preferDownload: true,
+      });
+    }).catch((error) => {
+      showToast(`保存实验图像失败：${error.message || "未知错误"}`);
+    });
+  }
+
   function configureSimulationUI(expId) {
     const expName = experimentMap.get(expId)?.name || "实验仿真";
     if (els.simulationModalTitle) {
@@ -6616,6 +6691,57 @@
       downloadToast: `已开始下载到本地：newton-rings-chart-${timestamp}.png`,
       preferDownload: true,
     });
+  }
+
+  function formatExportTimestamp() {
+    return new Date().toISOString().replace(/[:.]/g, "-");
+  }
+
+  function sanitizeFilenamePart(value) {
+    return String(value || "experiment")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "experiment";
+  }
+
+  function dataUrlToBlob(dataUrl, fallbackMime = "image/png") {
+    const text = String(dataUrl || "");
+    const match = text.match(/^data:([^;,]+)?(;base64)?,(.*)$/);
+    const mime = match?.[1] || fallbackMime;
+    const payload = match ? match[3] : text;
+    const binary = match?.[2] ? atob(payload) : atob(payload.replace(/\s/g, ""));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+  }
+
+  async function runWithBusyButton(button, busyText, task) {
+    const label = button?.querySelector?.("span");
+    const originalText = label?.textContent || "";
+    const wasDisabled = Boolean(button?.disabled);
+    if (button) {
+      button.disabled = true;
+      button.classList.add("is-busy");
+    }
+    if (label && busyText) {
+      label.textContent = busyText;
+    }
+
+    try {
+      return await task();
+    } finally {
+      if (button) {
+        button.disabled = wasDisabled;
+        button.classList.remove("is-busy");
+      }
+      if (label) {
+        label.textContent = originalText;
+      }
+    }
   }
 
   async function saveBlobWithShareFallback(blob, filename, options = {}) {
