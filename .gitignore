@@ -9,3 +9,28 @@ data/phet_catalog.json
 uploads/
 .venv
 .tmp-edge/
+
+# Large binaries / archives — not tracked in git
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+*.pt
+*.onnx
+*.engine
+
+# YOLO datasets and training artifacts (code only, no data/weights in git)
+data/torsion_yolo*/
+data/pendulum_yolo*/
+data/*.jpg
+data/*.png
+torsion_yolo_period/data/videos/
+torsion_yolo_period/data/images/
+torsion_yolo_period/data/images_raw/
+torsion_yolo_period/data/labels/
+torsion_yolo_period/data/labels_raw/
+torsion_yolo_period/runs/
+torsion_yolo_period/weights/
+torsion_yolo_period/outputs/
+torsion_yolo_period/*.pt

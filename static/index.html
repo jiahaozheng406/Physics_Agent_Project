@@ -311,6 +311,26 @@
         </button>
       </section>
 
+      <section class="sidebar-section pendulum-trigger-section">
+        <button id="openPendulumLabBtn" type="button" class="phet-side-btn pendulum-side-btn" aria-haspopup="dialog" aria-controls="pendulumLabModal">
+          <span class="phet-side-btn-label">
+            <i class="ri-pulse-line"></i>
+            <span>单摆周期测量</span>
+          </span>
+          <i class="ri-video-upload-line"></i>
+        </button>
+      </section>
+
+      <section class="sidebar-section torsion-trigger-section">
+        <button id="openTorsionLabBtn" type="button" class="phet-side-btn torsion-side-btn" aria-haspopup="dialog" aria-controls="torsionLabModal">
+          <span class="phet-side-btn-label">
+            <i class="ri-disc-line"></i>
+            <span>扭摆转动惯量</span>
+          </span>
+          <i class="ri-rotate-lock-line"></i>
+        </button>
+      </section>
+
       <!-- 只保留实验库空容器，列表由 app.js 动态生成 -->
       <section class="sidebar-section lab-section">
         <button id="openLabMenuBtn" type="button" class="lab-menu-btn" aria-expanded="false">
@@ -752,6 +772,282 @@
       </div>
 
       <div id="dataLabStatus" class="data-lab-status">已载入示例点，可直接修改后重新绘图。</div>
+    </div>
+  </div>
+
+  <div id="pendulumLabModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pendulumLabTitle">
+    <div class="pendulum-lab-modal glass-panel">
+      <div class="modal-header pendulum-lab-header">
+        <div>
+          <h3 id="pendulumLabTitle">单摆实验周期测量</h3>
+          <p>从实验视频中提取摆球轨迹，并与小角近似理论周期对比。</p>
+        </div>
+        <div class="pendulum-lab-header-actions">
+          <button id="pendulumAnalyzeBtn" type="button" class="invoke-agent-btn">
+            <i class="ri-scan-2-line"></i>
+            <span>开始分析</span>
+          </button>
+          <button id="pendulumClearBtn" type="button" class="ghost-side-btn">清空</button>
+          <button id="closePendulumLabBtn" type="button" class="icon-btn" aria-label="关闭单摆周期测量窗口">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="pendulum-lab-body">
+        <section class="pendulum-lab-form">
+          <article class="data-lab-card pendulum-video-card">
+            <div class="data-lab-card-head">
+              <h4>视频输入</h4>
+              <span id="pendulumVideoMeta" class="data-lab-card-meta">mp4 / webm / mov / avi / mkv</span>
+            </div>
+            <input id="pendulumVideoInput" class="hidden" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.webm,.mov,.m4v,.avi,.mkv" />
+            <div id="pendulumVideoDropzone" class="pendulum-video-dropzone">
+              <i class="ri-video-upload-line"></i>
+              <span>选择或拖入单摆实验视频</span>
+            </div>
+            <div class="pendulum-video-actions">
+              <button id="pendulumPickVideoBtn" type="button" class="ghost-side-btn">
+                <i class="ri-folder-video-line"></i>
+                <span>选择视频</span>
+              </button>
+              <button id="pendulumRecordBtn" type="button" class="ghost-side-btn">
+                <i class="ri-record-circle-line"></i>
+                <span>摄像头录制</span>
+              </button>
+            </div>
+            <video id="pendulumVideoPreview" class="pendulum-video-preview hidden" controls playsinline muted></video>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>理论参数</h4>
+              <span class="data-lab-card-meta">T = 2π√(L/g)</span>
+            </div>
+            <div class="data-lab-grid data-lab-grid-simple">
+              <label class="data-lab-field">
+                <span>摆长 L / m</span>
+                <input id="pendulumLengthInput" type="number" min="0.01" step="0.01" placeholder="实测值，可留空" inputmode="decimal" />
+              </label>
+              <label class="data-lab-field">
+                <span>g / m·s^-2</span>
+                <input id="pendulumGravityInput" type="number" min="0.1" step="0.01" value="9.80" inputmode="decimal" />
+              </label>
+              <label class="data-lab-field">
+                <span>视觉检测器</span>
+                <select id="pendulumDetectorSelect">
+                  <option value="auto">自动：YOLOv5 优先</option>
+                  <option value="yolov5">仅 YOLOv5</option>
+                  <option value="opencv">传统视觉</option>
+                </select>
+              </label>
+            </div>
+            <div id="pendulumStatus" class="data-lab-status pendulum-status">请选择单摆实验视频。</div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>测量概览</h4>
+              <span id="pendulumDetectionMeta" class="data-lab-card-meta">等待分析</span>
+            </div>
+            <div class="pendulum-metrics">
+              <div class="data-lab-metric">
+                <span>实验周期</span>
+                <strong id="pendulumMetricExp">-- s</strong>
+              </div>
+              <div class="data-lab-metric">
+                <span>理论周期</span>
+                <strong id="pendulumMetricTheory">-- s</strong>
+              </div>
+              <div class="data-lab-metric">
+                <span>相对误差</span>
+                <strong id="pendulumMetricError">--</strong>
+              </div>
+              <div class="data-lab-metric">
+                <span>稳定性</span>
+                <strong id="pendulumMetricStability">--</strong>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="pendulum-lab-output">
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>周期曲线</h4>
+              <span id="pendulumCurveCaption" class="data-lab-card-meta">摆球横向位移随时间变化</span>
+            </div>
+            <div id="pendulumCurvePlot" class="pendulum-curve-plot"></div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>轨迹动画</h4>
+              <span class="data-lab-card-meta">检测中心点序列</span>
+            </div>
+            <canvas id="pendulumTrajectoryCanvas" class="pendulum-trajectory-canvas"></canvas>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>YOLO 处理视频</h4>
+              <span id="pendulumProcessedMeta" class="data-lab-card-meta">等待分析</span>
+            </div>
+            <video id="pendulumProcessedVideo" class="pendulum-processed-video hidden" controls playsinline muted></video>
+            <div id="pendulumProcessedPlaceholder" class="pendulum-processed-placeholder">完成分析后显示带检测点与轨迹标注的视频。</div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>Agent 实验解释</h4>
+              <button id="pendulumSendToChatBtn" type="button" class="invoke-agent-btn pendulum-chat-btn">继续讲解</button>
+            </div>
+            <div id="pendulumResultSummary" class="data-lab-summary">
+              <div class="data-lab-summary-empty">完成分析后，这里会显示周期、误差来源与操作改进建议。</div>
+            </div>
+          </article>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="torsionLabModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="torsionLabTitle">
+    <div class="torsion-lab-modal glass-panel">
+      <div class="modal-header torsion-lab-header">
+        <div>
+          <h3 id="torsionLabTitle">扭摆法测转动惯量</h3>
+          <p>用 YOLO/视觉模型提取扭摆角度序列，测量周期并计算转动惯量。</p>
+        </div>
+        <div class="torsion-lab-header-actions">
+          <button id="torsionAnalyzeBtn" type="button" class="invoke-agent-btn">
+            <i class="ri-scan-2-line"></i>
+            <span>开始分析</span>
+          </button>
+          <button id="torsionClearBtn" type="button" class="ghost-side-btn">清空</button>
+          <button id="closeTorsionLabBtn" type="button" class="icon-btn" aria-label="关闭扭摆法测转动惯量窗口">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="torsion-lab-body">
+        <section class="torsion-lab-form">
+          <article class="data-lab-card torsion-video-card">
+            <div class="data-lab-card-head">
+              <h4>视频输入</h4>
+              <span id="torsionVideoMeta" class="data-lab-card-meta">mp4 / webm / mov / avi / mkv</span>
+            </div>
+            <input id="torsionVideoInput" class="hidden" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.webm,.mov,.m4v,.avi,.mkv" />
+            <div id="torsionVideoDropzone" class="pendulum-video-dropzone torsion-video-dropzone">
+              <i class="ri-video-upload-line"></i>
+              <span>选择或拖入扭摆实验视频</span>
+            </div>
+            <div class="pendulum-video-actions">
+              <button id="torsionPickVideoBtn" type="button" class="ghost-side-btn">
+                <i class="ri-folder-video-line"></i>
+                <span>选择视频</span>
+              </button>
+              <button id="torsionLiveBtn" type="button" class="ghost-side-btn">
+                <i class="ri-camera-3-line"></i>
+                <span>实时测量</span>
+              </button>
+            </div>
+            <div class="torsion-live-stage">
+              <video id="torsionVideoPreview" class="pendulum-video-preview hidden" controls playsinline muted></video>
+              <canvas id="torsionLiveOverlayCanvas" class="torsion-live-overlay hidden"></canvas>
+            </div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>物理参数</h4>
+              <span class="data-lab-card-meta">I = κT²/(4π²)</span>
+            </div>
+            <div class="data-lab-grid data-lab-grid-simple">
+              <label class="data-lab-field">
+                <span>κ / N·m·rad^-1</span>
+                <input id="torsionKappaInput" type="number" min="0.00000001" step="0.000001" placeholder="可留空" inputmode="decimal" />
+              </label>
+              <label class="data-lab-field">
+                <span>I0 / kg·m^2</span>
+                <input id="torsionCalibrationInertiaInput" type="number" min="0.00000001" step="0.000001" placeholder="标定可选" inputmode="decimal" />
+              </label>
+              <label class="data-lab-field">
+                <span>T0 / s</span>
+                <input id="torsionCalibrationPeriodInput" type="number" min="0.01" step="0.01" placeholder="标定可选" inputmode="decimal" />
+              </label>
+              <label class="data-lab-field">
+                <span>初始角 θ0 / deg</span>
+                <input id="torsionInitialAngleInput" type="number" step="0.1" placeholder="可留空" inputmode="decimal" />
+              </label>
+              <label class="data-lab-field">
+                <span>视觉检测器</span>
+                <select id="torsionDetectorSelect">
+                  <option value="auto">自动：YOLO-Seg 优先</option>
+                  <option value="yolo-seg">仅 YOLO-Seg（杆子分割）</option>
+                  <option value="yolov5">仅 YOLOv5</option>
+                  <option value="opencv">传统视觉</option>
+                </select>
+              </label>
+            </div>
+            <div id="torsionStatus" class="data-lab-status pendulum-status">请选择扭摆实验视频。</div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>测量概览</h4>
+              <span id="torsionDetectionMeta" class="data-lab-card-meta">等待分析</span>
+            </div>
+            <div class="pendulum-metrics">
+              <div class="data-lab-metric">
+                <span>扭摆周期</span>
+                <strong id="torsionMetricPeriod">-- s</strong>
+              </div>
+              <div class="data-lab-metric">
+                <span>转动惯量</span>
+                <strong id="torsionMetricInertia">--</strong>
+              </div>
+              <div class="data-lab-metric">
+                <span>扭转常量</span>
+                <strong id="torsionMetricKappa">--</strong>
+              </div>
+              <div class="data-lab-metric">
+                <span>稳定性</span>
+                <strong id="torsionMetricStability">--</strong>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="torsion-lab-output">
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>角度曲线</h4>
+              <span id="torsionCurveCaption" class="data-lab-card-meta">θ(t) 随时间变化</span>
+            </div>
+            <div id="torsionCurvePlot" class="pendulum-curve-plot"></div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>YOLO 处理视频</h4>
+              <span id="torsionProcessedMeta" class="data-lab-card-meta">等待分析</span>
+            </div>
+            <video id="torsionProcessedVideo" class="pendulum-processed-video hidden" controls playsinline muted></video>
+            <div id="torsionProcessedPlaceholder" class="pendulum-processed-placeholder">完成分析后显示带角度标注的视频。</div>
+          </article>
+
+          <article class="data-lab-card">
+            <div class="data-lab-card-head">
+              <h4>Agent 实验解释</h4>
+              <button id="torsionSendToChatBtn" type="button" class="invoke-agent-btn pendulum-chat-btn">继续讲解</button>
+            </div>
+            <div id="torsionResultSummary" class="data-lab-summary">
+              <div class="data-lab-summary-empty">完成分析后，这里会显示周期、转动惯量与操作改进建议。</div>
+            </div>
+          </article>
+        </section>
+      </div>
     </div>
   </div>
 

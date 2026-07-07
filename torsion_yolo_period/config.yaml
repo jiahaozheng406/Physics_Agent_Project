@@ -1,0 +1,48 @@
+# torsion_yolo_period configuration
+# All paths are relative to the torsion_yolo_period/ directory unless absolute.
+
+# --- Data ---
+data:
+  videos_dir: data/videos
+  images_dir: data/images
+  labels_dir: data/labels
+  dataset_yaml: data/torsion_rod_seg.yaml
+  frame_interval: 5          # extract every Nth frame
+  min_frames_per_video: 100
+  split_ratio: [0.7, 0.2, 0.1]   # train / val / test
+
+# --- Model ---
+model:
+  weights: weights/best.pt          # inference weights
+  pretrained: yolo11n-seg.pt        # training base (seg model)
+  imgsz: 640
+  epochs: 100
+  batch: 8
+  device: "0"                       # "0" for GPU, "cpu" for CPU-only
+  project: runs/torsion_rod_seg
+  name: yolo_seg_rod
+  conf_threshold: 0.25
+  iou_threshold: 0.45
+
+# --- Angle extraction ---
+angle:
+  min_mask_area: 50          # pixels; frames with smaller mask are skipped
+  min_mask_pixels: 20        # minimum non-zero pixels for PCA
+  max_gap_frames: 10         # linear-interpolate gaps shorter than this
+  smooth_method: savgol      # "savgol" | "moving_avg"
+  savgol_window: 11
+  savgol_polyorder: 3
+
+# --- Period estimation ---
+period:
+  method: zero_crossing      # primary: "zero_crossing" | "peak" | "fit"
+  min_peaks: 3               # need at least this many peaks/crossings
+  min_period_s: 0.3          # ignore sub-physical periods
+  max_period_s: 20.0
+
+# --- Visualization ---
+viz:
+  overlay_alpha: 0.4         # mask overlay transparency
+  line_length_ratio: 0.4     # PCA direction line as fraction of frame width
+  font_scale: 0.6
+  font_thickness: 1

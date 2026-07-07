@@ -25,6 +25,19 @@ from PIL import Image, ImageDraw
 from pydantic import BaseModel, Field
 
 from backend.models import ModelGateway, encode_base64_bytes, extract_delta_text
+from backend.pendulum_analysis import (
+    PendulumAnalysisError,
+    PendulumDependencyError,
+    analyze_pendulum_video,
+    format_pendulum_report,
+)
+from backend.torsion_analysis import (
+    TorsionAnalysisError,
+    TorsionDependencyError,
+    analyze_torsion_frame,
+    analyze_torsion_video,
+    format_torsion_report,
+)
 from backend.phet_catalog import PhetCatalogService, resolve_phet_cache_age_seconds
 from backend.rag import DEFAULT_TOP_K, build_rag_context, chunk_document
 from backend.storage import (
@@ -44,6 +57,8 @@ UPLOAD_DIR = Path(os.getenv("PHYSICS_AGENT_UPLOAD_DIR", str(RUNTIME_DIR / "uploa
 DOC_UPLOAD_DIR = UPLOAD_DIR / "docs"
 IMAGE_UPLOAD_DIR = UPLOAD_DIR / "images"
 AUDIO_UPLOAD_DIR = UPLOAD_DIR / "audio"
+PENDULUM_UPLOAD_DIR = UPLOAD_DIR / "pendulum"
+TORSION_UPLOAD_DIR = UPLOAD_DIR / "torsion"
 PHET_CACHE_PATH = Path(
     os.getenv("PHYSICS_AGENT_PHET_CACHE_PATH", str(RUNTIME_DIR / "data" / "phet_catalog.json"))
 ).resolve()
@@ -57,7 +72,7 @@ APP_ICON_SOURCE_PATH = Path(
 MANIFEST_PATH = STATIC_DIR / "manifest.webmanifest"
 SERVICE_WORKER_PATH = STATIC_DIR / "sw.js"
 
-for folder in (DOC_UPLOAD_DIR, IMAGE_UPLOAD_DIR, AUDIO_UPLOAD_DIR):
+for folder in (DOC_UPLOAD_DIR, IMAGE_UPLOAD_DIR, AUDIO_UPLOAD_DIR, PENDULUM_UPLOAD_DIR, TORSION_UPLOAD_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 
 DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -79,6 +94,9 @@ TOP_K_CHUNKS = int(os.getenv("RAG_TOP_K", str(DEFAULT_TOP_K)))
 ALLOWED_DOC_EXT = {".pdf", ".docx"}
 ALLOWED_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 ALLOWED_AUDIO_EXT = {".webm", ".wav", ".mp3", ".m4a", ".aac", ".ogg"}
+ALLOWED_PENDULUM_VIDEO_EXT = {".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"}
+MAX_PENDULUM_VIDEO_BYTES = int(os.getenv("PHYSICS_AGENT_MAX_PENDULUM_VIDEO_BYTES", str(80 * 1024 * 1024)))
+MAX_TORSION_LIVE_FRAME_BYTES = int(os.getenv("PHYSICS_AGENT_MAX_TORSION_LIVE_FRAME_BYTES", str(4 * 1024 * 1024)))
 WECHAT_APP_ID = os.getenv("PHYSICS_AGENT_WECHAT_APP_ID", "").strip()
 WECHAT_APP_SECRET = os.getenv("PHYSICS_AGENT_WECHAT_APP_SECRET", "").strip()
 QQ_APP_ID = os.getenv("PHYSICS_AGENT_QQ_APP_ID", "").strip()
@@ -485,6 +503,21 @@ def ext_to_mime(ext: str) -> str:
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
     return mapping.get(ext.lower(), "application/octet-stream")
+
+
+def pendulum_video_extension(filename: str, content_type: str | None = None) -> str:
+    ext = Path(filename or "").suffix.lower()
+    if ext in ALLOWED_PENDULUM_VIDEO_EXT:
+        return ext
+    mime = (content_type or "").split(";", 1)[0].strip().lower()
+    mapping = {
+        "video/mp4": ".mp4",
+        "video/webm": ".webm",
+        "video/quicktime": ".mov",
+        "video/x-msvideo": ".avi",
+        "video/x-matroska": ".mkv",
+    }
+    return mapping.get(mime, ext)
 
 
 def resolve_external_doc_paths() -> list[Path]:
@@ -1504,6 +1537,275 @@ async def chat(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.post("/api/physics/pendulum/analyze")
+async def analyze_pendulum_period(
+    session_id: str = Form(...),
+    length_m: float | None = Form(None),
+    gravity: float = Form(9.8),
+    detector: str = Form("auto"),
+    message: str = Form("帮我测单摆周期"),
+    video: UploadFile = File(...),
+    user: dict[str, Any] = Depends(require_current_user),
+) -> dict[str, Any]:
+    try:
+        STORE.ensure_session(session_id, user_id=str(user["id"]))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    filename = video.filename or "pendulum-video"
+    ext = pendulum_video_extension(filename, video.content_type)
+    if ext not in ALLOWED_PENDULUM_VIDEO_EXT:
+        raise HTTPException(status_code=400, detail="请上传 mp4、webm、mov、avi 或 mkv 格式的单摆实验视频。")
+    if length_m is not None and length_m <= 0:
+        raise HTTPException(status_code=400, detail="摆长 L 必须大于 0。")
+    if gravity <= 0:
+        raise HTTPException(status_code=400, detail="重力加速度 g 必须大于 0。")
+
+    raw = await video.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="上传视频为空。")
+    if len(raw) > MAX_PENDULUM_VIDEO_BYTES:
+        limit_mb = MAX_PENDULUM_VIDEO_BYTES / (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"视频超过 {limit_mb:.0f}MB 上限，请压缩或截取关键片段后重试。")
+
+    stored_path = PENDULUM_UPLOAD_DIR / f"{uuid.uuid4().hex}{ext}"
+    stored_path.write_bytes(raw)
+    processed_path = PENDULUM_UPLOAD_DIR / f"{stored_path.stem}.processed.webm"
+
+    try:
+        result = analyze_pendulum_video(
+            stored_path,
+            length_m=length_m,
+            gravity=gravity,
+            detector=detector,
+            output_video_path=processed_path,
+        )
+    except PendulumDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PendulumAnalysisError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"单摆视频分析失败：{exc}") from exc
+
+    clean_message = (message or "").strip() or "帮我测单摆周期"
+    user_content = "\n".join(
+        [
+            "[单摆周期测量]",
+            clean_message,
+            f"视频文件：{filename}",
+            (
+                f"摆长 L = {length_m:.4g} m，g = {gravity:.4g} m/s^2"
+                if length_m is not None
+                else f"摆长 L = 未输入，g = {gravity:.4g} m/s^2"
+            ),
+            f"检测器：{result.get('detector_requested') or detector}",
+        ]
+    )
+    assistant_content = format_pendulum_report(result)
+    model_used = f"{result.get('detector') or detector}-pendulum-cv"
+    user_message_id = STORE.create_message(
+        session_id,
+        "user",
+        user_content,
+        user_id=str(user["id"]),
+        status="done",
+        input_mode="video",
+    )
+    assistant_message_id = STORE.create_message(
+        session_id,
+        "assistant",
+        assistant_content,
+        user_id=str(user["id"]),
+        model_used=model_used,
+        status="done",
+        input_mode="video",
+    )
+    STORE.maybe_autotitle_session(session_id, "单摆周期测量")
+    STORE.set_last_model(session_id, model_used)
+    cache_session_state(session_id, user)
+
+    if result.get("processed_video_created") and processed_path.exists():
+        result["processed_video_url"] = f"/api/physics/pendulum/processed/{processed_path.name}"
+        result["processed_video_mime"] = "video/webm"
+
+    return {
+        **result,
+        "session_id": session_id,
+        "user_message_id": user_message_id,
+        "assistant_message_id": assistant_message_id,
+    }
+
+
+@app.get("/api/physics/pendulum/processed/{filename}")
+async def get_pendulum_processed_video(
+    filename: str,
+    user: dict[str, Any] = Depends(require_current_user),
+) -> FileResponse:
+    safe_name = Path(filename).name
+    if safe_name != filename or not (safe_name.endswith(".processed.webm") or safe_name.endswith(".processed.mp4")):
+        raise HTTPException(status_code=404, detail="处理后视频不存在。")
+    root = PENDULUM_UPLOAD_DIR.resolve()
+    path = (PENDULUM_UPLOAD_DIR / safe_name).resolve()
+    if path.parent != root or not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="处理后视频不存在。")
+    media_type = "video/webm" if safe_name.endswith(".webm") else "video/mp4"
+    return FileResponse(path, media_type=media_type, filename=safe_name)
+
+
+@app.post("/api/physics/torsion/live-frame")
+async def analyze_torsion_live_frame(
+    detector: str = Form("opencv"),
+    last_angle_deg: float | None = Form(None),
+    image: UploadFile = File(...),
+    user: dict[str, Any] = Depends(require_current_user),
+) -> dict[str, Any]:
+    content_type = (image.content_type or "").lower()
+    if content_type and not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="实时扭摆分析只接受图像帧。")
+    raw = await image.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="实时图像帧为空。")
+    if len(raw) > MAX_TORSION_LIVE_FRAME_BYTES:
+        limit_mb = MAX_TORSION_LIVE_FRAME_BYTES / (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"实时图像帧超过 {limit_mb:.0f}MB 上限。")
+
+    try:
+        return analyze_torsion_frame(
+            raw,
+            detector=detector,
+            last_angle_deg=last_angle_deg,
+        )
+    except TorsionDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except TorsionAnalysisError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"实时扭摆帧分析失败：{exc}") from exc
+
+
+@app.post("/api/physics/torsion/analyze")
+async def analyze_torsion_inertia(
+    session_id: str = Form(...),
+    torsion_constant: float | None = Form(None),
+    calibration_inertia: float | None = Form(None),
+    calibration_period: float | None = Form(None),
+    initial_angle_deg: float | None = Form(None),
+    detector: str = Form("auto"),
+    message: str = Form("帮我用扭摆法测转动惯量"),
+    video: UploadFile = File(...),
+    user: dict[str, Any] = Depends(require_current_user),
+) -> dict[str, Any]:
+    try:
+        STORE.ensure_session(session_id, user_id=str(user["id"]))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    filename = video.filename or "torsion-video"
+    ext = pendulum_video_extension(filename, video.content_type)
+    if ext not in ALLOWED_PENDULUM_VIDEO_EXT:
+        raise HTTPException(status_code=400, detail="请上传 mp4、webm、mov、avi 或 mkv 格式的扭摆实验视频。")
+    if torsion_constant is not None and torsion_constant <= 0:
+        raise HTTPException(status_code=400, detail="扭转常量 κ 必须大于 0。")
+    if calibration_inertia is not None and calibration_inertia <= 0:
+        raise HTTPException(status_code=400, detail="标定转动惯量 I0 必须大于 0。")
+    if calibration_period is not None and calibration_period <= 0:
+        raise HTTPException(status_code=400, detail="标定周期 T0 必须大于 0。")
+
+    raw = await video.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="上传视频为空。")
+    if len(raw) > MAX_PENDULUM_VIDEO_BYTES:
+        limit_mb = MAX_PENDULUM_VIDEO_BYTES / (1024 * 1024)
+        raise HTTPException(status_code=400, detail=f"视频超过 {limit_mb:.0f}MB 上限，请压缩或截取关键片段后重试。")
+
+    stored_path = TORSION_UPLOAD_DIR / f"{uuid.uuid4().hex}{ext}"
+    stored_path.write_bytes(raw)
+    processed_path = TORSION_UPLOAD_DIR / f"{stored_path.stem}.processed.webm"
+
+    try:
+        result = analyze_torsion_video(
+            stored_path,
+            torsion_constant=torsion_constant,
+            calibration_inertia=calibration_inertia,
+            calibration_period=calibration_period,
+            initial_angle_deg=initial_angle_deg,
+            detector=detector,
+            output_video_path=processed_path,
+        )
+    except TorsionDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except TorsionAnalysisError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"扭摆视频分析失败：{exc}") from exc
+
+    clean_message = (message or "").strip() or "帮我用扭摆法测转动惯量"
+    user_content = "\n".join(
+        [
+            "[扭摆法测转动惯量]",
+            clean_message,
+            f"视频文件：{filename}",
+            f"扭转常量 κ = {torsion_constant:.6g} N·m/rad" if torsion_constant is not None else "扭转常量 κ = 未直接输入",
+            (
+                f"标定数据：I0 = {calibration_inertia:.6g} kg·m²，T0 = {calibration_period:.6g} s"
+                if calibration_inertia is not None and calibration_period is not None
+                else "标定数据：未输入"
+            ),
+            f"初始角 θ0 = {initial_angle_deg:.4g}°" if initial_angle_deg is not None else "初始角 θ0 = 未输入",
+            f"检测器：{result.get('detector_requested') or detector}",
+        ]
+    )
+    assistant_content = format_torsion_report(result)
+    model_used = f"{result.get('detector') or detector}-torsion-cv"
+    user_message_id = STORE.create_message(
+        session_id,
+        "user",
+        user_content,
+        user_id=str(user["id"]),
+        status="done",
+        input_mode="video",
+    )
+    assistant_message_id = STORE.create_message(
+        session_id,
+        "assistant",
+        assistant_content,
+        user_id=str(user["id"]),
+        model_used=model_used,
+        status="done",
+        input_mode="video",
+    )
+    STORE.maybe_autotitle_session(session_id, "扭摆法测转动惯量")
+    STORE.set_last_model(session_id, model_used)
+    cache_session_state(session_id, user)
+
+    if result.get("processed_video_created") and processed_path.exists():
+        result["processed_video_url"] = f"/api/physics/torsion/processed/{processed_path.name}"
+        result["processed_video_mime"] = "video/webm"
+
+    return {
+        **result,
+        "session_id": session_id,
+        "user_message_id": user_message_id,
+        "assistant_message_id": assistant_message_id,
+    }
+
+
+@app.get("/api/physics/torsion/processed/{filename}")
+async def get_torsion_processed_video(
+    filename: str,
+    user: dict[str, Any] = Depends(require_current_user),
+) -> FileResponse:
+    safe_name = Path(filename).name
+    if safe_name != filename or not (safe_name.endswith(".processed.webm") or safe_name.endswith(".processed.mp4")):
+        raise HTTPException(status_code=404, detail="处理后视频不存在。")
+    root = TORSION_UPLOAD_DIR.resolve()
+    path = (TORSION_UPLOAD_DIR / safe_name).resolve()
+    if path.parent != root or not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="处理后视频不存在。")
+    media_type = "video/webm" if safe_name.endswith(".webm") else "video/mp4"
+    return FileResponse(path, media_type=media_type, filename=safe_name)
 
 
 @app.post("/api/upload")

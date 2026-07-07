@@ -712,6 +712,51 @@
       focusSection: "overview",
     },
     dataLab: createDataLabState(),
+    pendulum: {
+      isOpen: false,
+      videoFile: null,
+      videoUrl: "",
+      processedVideoUrl: "",
+      processedVideoSource: "",
+      processedVideoLoading: false,
+      processedVideoError: "",
+      result: null,
+      status: "请选择单摆实验视频。",
+      error: "",
+      recordingStream: null,
+      mediaRecorder: null,
+      recordingChunks: [],
+      recording: false,
+      recordingDiscard: false,
+      animationRaf: 0,
+      animationStartedAt: 0,
+    },
+    torsion: {
+      isOpen: false,
+      videoFile: null,
+      videoUrl: "",
+      processedVideoUrl: "",
+      processedVideoSource: "",
+      processedVideoLoading: false,
+      processedVideoError: "",
+      result: null,
+      status: "请选择扭摆实验视频。",
+      error: "",
+      liveStream: null,
+      liveActive: false,
+      liveTimer: 0,
+      livePending: false,
+      liveStartedAt: 0,
+      liveFrameIndex: 0,
+      liveDetectedFrames: 0,
+      liveAngleOffsetDeg: null,
+      liveInitialAngleDeg: null,
+      liveLastRawAngleDeg: null,
+      liveSeries: [],
+      liveDetectorHits: { yolov5: 0, opencv: 0 },
+      liveLastGeometry: null,
+      liveFrameSize: null,
+    },
     androidBack: {
       lastRootPressAt: 0,
       listenerReady: false,
@@ -965,6 +1010,8 @@
     togglePhetWorkspaceBtn: document.getElementById("togglePhetWorkspaceBtn"),
     closePhetWorkspaceBtn: document.getElementById("closePhetWorkspaceBtn"),
     openDataLabBtn: document.getElementById("openDataLabBtn"),
+    openPendulumLabBtn: document.getElementById("openPendulumLabBtn"),
+    openTorsionLabBtn: document.getElementById("openTorsionLabBtn"),
     contentShell: document.getElementById("contentShell"),
     phetWorkspace: document.getElementById("phetWorkspace"),
     phetDetailModal: document.getElementById("phetDetailModal"),
@@ -1065,6 +1112,62 @@
     dataLabResultSummary: document.getElementById("dataLabResultSummary"),
     dataLabResultTableBody: document.getElementById("dataLabResultTableBody"),
     dataLabStatus: document.getElementById("dataLabStatus"),
+    pendulumLabModal: document.getElementById("pendulumLabModal"),
+    closePendulumLabBtn: document.getElementById("closePendulumLabBtn"),
+    pendulumAnalyzeBtn: document.getElementById("pendulumAnalyzeBtn"),
+    pendulumClearBtn: document.getElementById("pendulumClearBtn"),
+    pendulumVideoInput: document.getElementById("pendulumVideoInput"),
+    pendulumPickVideoBtn: document.getElementById("pendulumPickVideoBtn"),
+    pendulumRecordBtn: document.getElementById("pendulumRecordBtn"),
+    pendulumVideoDropzone: document.getElementById("pendulumVideoDropzone"),
+    pendulumVideoPreview: document.getElementById("pendulumVideoPreview"),
+    pendulumVideoMeta: document.getElementById("pendulumVideoMeta"),
+    pendulumLengthInput: document.getElementById("pendulumLengthInput"),
+    pendulumGravityInput: document.getElementById("pendulumGravityInput"),
+    pendulumDetectorSelect: document.getElementById("pendulumDetectorSelect"),
+    pendulumStatus: document.getElementById("pendulumStatus"),
+    pendulumDetectionMeta: document.getElementById("pendulumDetectionMeta"),
+    pendulumMetricExp: document.getElementById("pendulumMetricExp"),
+    pendulumMetricTheory: document.getElementById("pendulumMetricTheory"),
+    pendulumMetricError: document.getElementById("pendulumMetricError"),
+    pendulumMetricStability: document.getElementById("pendulumMetricStability"),
+    pendulumCurveCaption: document.getElementById("pendulumCurveCaption"),
+    pendulumCurvePlot: document.getElementById("pendulumCurvePlot"),
+    pendulumTrajectoryCanvas: document.getElementById("pendulumTrajectoryCanvas"),
+    pendulumProcessedVideo: document.getElementById("pendulumProcessedVideo"),
+    pendulumProcessedMeta: document.getElementById("pendulumProcessedMeta"),
+    pendulumProcessedPlaceholder: document.getElementById("pendulumProcessedPlaceholder"),
+    pendulumResultSummary: document.getElementById("pendulumResultSummary"),
+    pendulumSendToChatBtn: document.getElementById("pendulumSendToChatBtn"),
+    torsionLabModal: document.getElementById("torsionLabModal"),
+    closeTorsionLabBtn: document.getElementById("closeTorsionLabBtn"),
+    torsionAnalyzeBtn: document.getElementById("torsionAnalyzeBtn"),
+    torsionClearBtn: document.getElementById("torsionClearBtn"),
+    torsionVideoInput: document.getElementById("torsionVideoInput"),
+    torsionPickVideoBtn: document.getElementById("torsionPickVideoBtn"),
+    torsionLiveBtn: document.getElementById("torsionLiveBtn"),
+    torsionVideoDropzone: document.getElementById("torsionVideoDropzone"),
+    torsionVideoPreview: document.getElementById("torsionVideoPreview"),
+    torsionLiveOverlayCanvas: document.getElementById("torsionLiveOverlayCanvas"),
+    torsionVideoMeta: document.getElementById("torsionVideoMeta"),
+    torsionKappaInput: document.getElementById("torsionKappaInput"),
+    torsionCalibrationInertiaInput: document.getElementById("torsionCalibrationInertiaInput"),
+    torsionCalibrationPeriodInput: document.getElementById("torsionCalibrationPeriodInput"),
+    torsionInitialAngleInput: document.getElementById("torsionInitialAngleInput"),
+    torsionDetectorSelect: document.getElementById("torsionDetectorSelect"),
+    torsionStatus: document.getElementById("torsionStatus"),
+    torsionDetectionMeta: document.getElementById("torsionDetectionMeta"),
+    torsionMetricPeriod: document.getElementById("torsionMetricPeriod"),
+    torsionMetricInertia: document.getElementById("torsionMetricInertia"),
+    torsionMetricKappa: document.getElementById("torsionMetricKappa"),
+    torsionMetricStability: document.getElementById("torsionMetricStability"),
+    torsionCurveCaption: document.getElementById("torsionCurveCaption"),
+    torsionCurvePlot: document.getElementById("torsionCurvePlot"),
+    torsionProcessedVideo: document.getElementById("torsionProcessedVideo"),
+    torsionProcessedMeta: document.getElementById("torsionProcessedMeta"),
+    torsionProcessedPlaceholder: document.getElementById("torsionProcessedPlaceholder"),
+    torsionResultSummary: document.getElementById("torsionResultSummary"),
+    torsionSendToChatBtn: document.getElementById("torsionSendToChatBtn"),
     webCameraModal: document.getElementById("webCameraModal"),
     closeWebCameraBtn: document.getElementById("closeWebCameraBtn"),
     webCameraVideo: document.getElementById("webCameraVideo"),
@@ -1111,6 +1214,8 @@
   ensureSimulationCanvasSize();
   startSimulationLoop();
   initializeDataLab();
+  renderPendulumLab();
+  renderTorsionLab();
   if (!APP.runtime.isLiteBackend) {
     APP.auth.forceGateVisible = shouldAutoPresentAuthGate() || !APP.auth.token;
     syncAuthUi();
@@ -1346,6 +1451,14 @@
       openDataLabModal();
     });
 
+    els.openPendulumLabBtn?.addEventListener("click", () => {
+      openPendulumLabModal();
+    });
+
+    els.openTorsionLabBtn?.addEventListener("click", () => {
+      openTorsionLabModal();
+    });
+
     els.closePhetWorkspaceBtn?.addEventListener("click", () => {
       closePhetWorkspace();
     });
@@ -1360,10 +1473,160 @@
       closeDataLabModal();
     });
 
+    els.closePendulumLabBtn?.addEventListener("click", () => {
+      closePendulumLabModal();
+    });
+
+    els.closeTorsionLabBtn?.addEventListener("click", () => {
+      closeTorsionLabModal();
+    });
+
     els.dataLabModal?.addEventListener("click", (event) => {
       if (event.target === els.dataLabModal) {
         closeDataLabModal();
       }
+    });
+
+    els.pendulumLabModal?.addEventListener("click", (event) => {
+      if (event.target === els.pendulumLabModal) {
+        closePendulumLabModal();
+      }
+    });
+
+    els.torsionLabModal?.addEventListener("click", (event) => {
+      if (event.target === els.torsionLabModal) {
+        closeTorsionLabModal();
+      }
+    });
+
+    els.pendulumPickVideoBtn?.addEventListener("click", () => {
+      els.pendulumVideoInput?.click();
+    });
+
+    els.pendulumVideoDropzone?.addEventListener("click", () => {
+      els.pendulumVideoInput?.click();
+    });
+
+    els.pendulumVideoInput?.addEventListener("change", (event) => {
+      const file = Array.from(event.target.files || [])[0];
+      if (file) {
+        setPendulumVideoFile(file);
+      }
+      event.target.value = "";
+    });
+
+    ["dragenter", "dragover"].forEach((name) => {
+      els.pendulumVideoDropzone?.addEventListener(name, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        els.pendulumVideoDropzone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((name) => {
+      els.pendulumVideoDropzone?.addEventListener(name, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        els.pendulumVideoDropzone.classList.remove("dragover");
+      });
+    });
+
+    els.pendulumVideoDropzone?.addEventListener("drop", (event) => {
+      const file = Array.from(event.dataTransfer?.files || [])[0];
+      if (file) {
+        setPendulumVideoFile(file);
+      }
+    });
+
+    els.pendulumAnalyzeBtn?.addEventListener("click", async () => {
+      await analyzePendulumVideo({ prompt: "请根据这个单摆实验视频测量周期，并分析误差来源。" });
+    });
+
+    els.pendulumRecordBtn?.addEventListener("click", async () => {
+      await togglePendulumRecording();
+    });
+
+    els.pendulumClearBtn?.addEventListener("click", () => {
+      resetPendulumLab();
+    });
+
+    els.pendulumDetectorSelect?.addEventListener("change", () => {
+      APP.pendulum.status = pendulumDetectorHint(els.pendulumDetectorSelect?.value || "auto");
+      APP.pendulum.error = "";
+      renderPendulumLab();
+    });
+
+    els.pendulumSendToChatBtn?.addEventListener("click", () => {
+      sendPendulumResultToChat();
+    });
+
+    els.pendulumProcessedVideo?.addEventListener("error", () => {
+      handlePendulumProcessedVideoPlaybackError();
+    });
+
+    els.torsionPickVideoBtn?.addEventListener("click", () => {
+      els.torsionVideoInput?.click();
+    });
+
+    els.torsionLiveBtn?.addEventListener("click", async () => {
+      if (APP.torsion.liveActive) {
+        stopTorsionLiveAnalysis();
+      } else {
+        await startTorsionLiveAnalysis();
+      }
+    });
+
+    els.torsionVideoDropzone?.addEventListener("click", () => {
+      els.torsionVideoInput?.click();
+    });
+
+    els.torsionVideoInput?.addEventListener("change", (event) => {
+      const file = Array.from(event.target.files || [])[0];
+      if (file) setTorsionVideoFile(file);
+      event.target.value = "";
+    });
+
+    ["dragenter", "dragover"].forEach((name) => {
+      els.torsionVideoDropzone?.addEventListener(name, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        els.torsionVideoDropzone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((name) => {
+      els.torsionVideoDropzone?.addEventListener(name, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        els.torsionVideoDropzone.classList.remove("dragover");
+      });
+    });
+
+    els.torsionVideoDropzone?.addEventListener("drop", (event) => {
+      const file = Array.from(event.dataTransfer?.files || [])[0];
+      if (file) setTorsionVideoFile(file);
+    });
+
+    els.torsionAnalyzeBtn?.addEventListener("click", async () => {
+      await analyzeTorsionVideo({ prompt: "请根据这个扭摆实验视频测量周期并计算转动惯量。" });
+    });
+
+    els.torsionClearBtn?.addEventListener("click", () => {
+      resetTorsionLab();
+    });
+
+    els.torsionDetectorSelect?.addEventListener("change", () => {
+      APP.torsion.status = torsionDetectorHint(els.torsionDetectorSelect?.value || "auto");
+      APP.torsion.error = "";
+      renderTorsionLab();
+    });
+
+    els.torsionSendToChatBtn?.addEventListener("click", () => {
+      sendTorsionResultToChat();
+    });
+
+    els.torsionProcessedVideo?.addEventListener("error", () => {
+      handleTorsionProcessedVideoPlaybackError();
     });
 
     els.closeWebCameraBtn?.addEventListener("click", () => {
@@ -1530,6 +1793,7 @@
     window.addEventListener("beforeunload", () => {
       stopPhetCaptureStream();
       stopWebCameraStream();
+      stopPendulumRecording({ discard: true });
     });
 
     document.addEventListener("click", (event) => {
@@ -1823,6 +2087,9 @@
       if (APP.phet.isOpen) {
         renderPhetWorkspace();
       }
+      if (APP.pendulum.isOpen && APP.pendulum.result) {
+        renderPendulumTrajectoryFrame(performance.now());
+      }
     });
 
     window.addEventListener("keydown", (event) => {
@@ -1836,6 +2103,14 @@
       }
       if (event.key === "Escape" && APP.dataLab.isOpen) {
         closeDataLabModal();
+        return;
+      }
+      if (event.key === "Escape" && APP.pendulum.isOpen) {
+        closePendulumLabModal();
+        return;
+      }
+      if (event.key === "Escape" && APP.torsion.isOpen) {
+        closeTorsionLabModal();
         return;
       }
       if (event.key === "Escape" && SIM.isOpen) {
@@ -1996,6 +2271,8 @@
 
   function getActiveUiView() {
     if (APP.dataLab.isOpen) return "data-lab";
+    if (APP.pendulum.isOpen) return "pendulum-lab";
+    if (APP.torsion.isOpen) return "torsion-lab";
     if (SIM.isOpen) return "simulation";
     if (APP.courseLab.isOpen) return "course-lab";
     if (APP.phet.detailOpen) return "phet-detail";
@@ -2012,6 +2289,14 @@
       }
       if (currentView === "data-lab") {
         closeDataLabModal({ skipHistory: true });
+        continue;
+      }
+      if (currentView === "pendulum-lab") {
+        closePendulumLabModal({ skipHistory: true });
+        continue;
+      }
+      if (currentView === "torsion-lab") {
+        closeTorsionLabModal({ skipHistory: true });
         continue;
       }
       if (currentView === "simulation") {
@@ -2035,7 +2320,7 @@
   }
 
   function syncImmersiveState() {
-    const immersiveOpen = APP.dataLab.isOpen || APP.phet.isOpen || APP.phet.detailOpen || APP.courseLab.isOpen || SIM.isOpen;
+    const immersiveOpen = APP.dataLab.isOpen || APP.pendulum.isOpen || APP.torsion.isOpen || APP.phet.isOpen || APP.phet.detailOpen || APP.courseLab.isOpen || SIM.isOpen;
     document.body.classList.toggle("immersive-open", immersiveOpen);
   }
 
@@ -4435,6 +4720,1648 @@
     };
   }
 
+  function openPendulumLabModal() {
+    const wasOpen = APP.pendulum.isOpen;
+    APP.pendulum.isOpen = true;
+    els.pendulumLabModal?.classList.remove("hidden");
+    syncImmersiveState();
+    renderPendulumLab();
+    if (!wasOpen) {
+      pushUiHistoryView("pendulum-lab");
+    }
+    startPendulumTrajectoryAnimation();
+  }
+
+  function closePendulumLabModal({ skipHistory = false } = {}) {
+    if (!skipHistory && (history.state?.[UI_VIEW_STATE_KEY] || "root") === "pendulum-lab") {
+      history.back();
+      return;
+    }
+    APP.pendulum.isOpen = false;
+    if (skipHistory && (history.state?.[UI_VIEW_STATE_KEY] || "root") === "pendulum-lab") {
+      replaceUiHistoryView("root");
+    }
+    if (APP.pendulum.recording) {
+      stopPendulumRecording({ discard: true });
+    }
+    els.pendulumLabModal?.classList.add("hidden");
+    stopPendulumTrajectoryAnimation();
+    syncImmersiveState();
+  }
+
+  function renderPendulumLab() {
+    els.openPendulumLabBtn?.classList.toggle("active", APP.pendulum.isOpen);
+    renderPendulumVideoPreview();
+    renderPendulumRecordingState();
+    renderPendulumStatus(APP.pendulum.error || APP.pendulum.status, Boolean(APP.pendulum.error));
+    renderPendulumResult(APP.pendulum.result);
+  }
+
+  function renderPendulumVideoPreview() {
+    const file = APP.pendulum.videoFile;
+    if (els.pendulumVideoMeta) {
+      els.pendulumVideoMeta.textContent = file
+        ? `${file.name} · ${formatFileSize(file.size)}`
+        : "mp4 / webm / mov / avi / mkv";
+    }
+    if (!els.pendulumVideoPreview) return;
+    if (APP.pendulum.recording) {
+      els.pendulumVideoPreview.classList.remove("hidden");
+      return;
+    }
+    if (!file || !APP.pendulum.videoUrl) {
+      els.pendulumVideoPreview.pause?.();
+      els.pendulumVideoPreview.removeAttribute("src");
+      els.pendulumVideoPreview.srcObject = null;
+      els.pendulumVideoPreview.classList.add("hidden");
+      return;
+    }
+    if (els.pendulumVideoPreview.src !== APP.pendulum.videoUrl) {
+      els.pendulumVideoPreview.srcObject = null;
+      els.pendulumVideoPreview.controls = true;
+      els.pendulumVideoPreview.muted = true;
+      els.pendulumVideoPreview.src = APP.pendulum.videoUrl;
+    }
+    els.pendulumVideoPreview.classList.remove("hidden");
+  }
+
+  function renderPendulumRecordingState() {
+    if (!els.pendulumRecordBtn) return;
+    els.pendulumRecordBtn.classList.toggle("recording", APP.pendulum.recording);
+    const label = els.pendulumRecordBtn.querySelector("span");
+    if (label) {
+      label.textContent = APP.pendulum.recording ? "停止录制" : "摄像头录制";
+    }
+    const icon = els.pendulumRecordBtn.querySelector("i");
+    if (icon) {
+      icon.className = APP.pendulum.recording ? "ri-stop-circle-line" : "ri-record-circle-line";
+    }
+  }
+
+  function renderPendulumStatus(message, isError = false) {
+    if (!els.pendulumStatus) return;
+    els.pendulumStatus.textContent = message || "";
+    els.pendulumStatus.classList.toggle("is-error", Boolean(isError));
+  }
+
+  function renderPendulumResult(result) {
+    const hasResult = Boolean(result);
+    if (els.pendulumMetricExp) els.pendulumMetricExp.textContent = hasResult ? `${formatPendulumNumber(result.period_experimental, 4)} s` : "-- s";
+    if (els.pendulumMetricTheory) {
+      els.pendulumMetricTheory.textContent = hasResult
+        ? (Number.isFinite(Number(result.period_theoretical)) ? `${formatPendulumNumber(result.period_theoretical, 4)} s` : "待输入 L")
+        : "-- s";
+    }
+    if (els.pendulumMetricError) {
+      els.pendulumMetricError.textContent = hasResult
+        ? (Number.isFinite(Number(result.error)) ? formatPendulumPercent(result.error) : "未计算")
+        : "--";
+    }
+    if (els.pendulumMetricStability) {
+      els.pendulumMetricStability.textContent = hasResult ? (result.stability?.level || "样本不足") : "--";
+    }
+    if (els.pendulumDetectionMeta) {
+      const hits = result?.detector_hits || {};
+      els.pendulumDetectionMeta.textContent = hasResult
+        ? `检测 ${result.detected_points || 0}/${result.frame_count || 0} 帧 · ${result.detector || "opencv"} · YOLO ${hits.yolov5 || 0} 帧`
+        : "等待分析";
+    }
+    if (els.pendulumCurveCaption) {
+      els.pendulumCurveCaption.textContent = hasResult
+        ? `主频 ${formatPendulumNumber(result.dominant_frequency_hz, 4)} Hz · FPS ${formatPendulumNumber(result.fps, 2)}`
+        : "摆球横向位移随时间变化";
+    }
+    if (els.pendulumCurvePlot) {
+      els.pendulumCurvePlot.innerHTML = hasResult
+        ? buildPendulumCurveSvg(result)
+        : '<div class="pendulum-placeholder">完成分析后显示 x(t) 周期曲线。</div>';
+    }
+    if (els.pendulumResultSummary) {
+      els.pendulumResultSummary.innerHTML = hasResult
+        ? buildPendulumSummaryMarkup(result)
+        : '<div class="data-lab-summary-empty">完成分析后，这里会显示周期、误差来源与操作改进建议。</div>';
+    }
+    renderPendulumProcessedVideo(result);
+    if (els.pendulumSendToChatBtn) {
+      els.pendulumSendToChatBtn.disabled = !hasResult;
+    }
+    if (hasResult && APP.pendulum.isOpen) {
+      startPendulumTrajectoryAnimation();
+    } else {
+      renderPendulumTrajectoryEmpty();
+    }
+  }
+
+  function clearPendulumProcessedVideo() {
+    if (APP.pendulum.processedVideoUrl) {
+      URL.revokeObjectURL(APP.pendulum.processedVideoUrl);
+    }
+    APP.pendulum.processedVideoUrl = "";
+    APP.pendulum.processedVideoSource = "";
+    APP.pendulum.processedVideoLoading = false;
+    APP.pendulum.processedVideoError = "";
+    if (els.pendulumProcessedVideo) {
+      els.pendulumProcessedVideo.pause?.();
+      els.pendulumProcessedVideo.removeAttribute("src");
+      els.pendulumProcessedVideo.load?.();
+    }
+  }
+
+  function renderPendulumProcessedVideo(result) {
+    const hasResult = Boolean(result);
+    const hasProcessedSource = Boolean(result?.processed_video_url);
+    const hasPlayableVideo = Boolean(APP.pendulum.processedVideoUrl);
+    const missingProcessedReason = !hasResult
+      ? "完成分析后显示带检测点与轨迹标注的视频。"
+      : APP.pendulum.processedVideoError
+        ? APP.pendulum.processedVideoError
+        : result.processed_video_created === false
+          ? (result.processed_video_error || "后端未能生成标注视频，请检查 OpenCV 视频编码支持。")
+          : result.processed_video_created === undefined
+            ? "当前分析结果不包含处理后视频字段，可能来自旧后端或旧结果；请在新版端口重新点击“开始分析”。"
+            : hasProcessedSource
+              ? "处理后视频已生成，正在准备播放。"
+              : "本次分析未生成处理后视频。";
+    if (els.pendulumProcessedMeta) {
+      els.pendulumProcessedMeta.textContent = !hasResult
+        ? "等待分析"
+        : APP.pendulum.processedVideoLoading
+          ? "正在加载标注视频"
+          : hasPlayableVideo
+            ? `${result.detector_requested || "auto"} → ${result.detector || "opencv"}`
+            : APP.pendulum.processedVideoError
+              ? "标注视频加载失败"
+              : hasProcessedSource
+                ? "可加载处理后视频"
+                : "未生成标注视频";
+    }
+    if (els.pendulumProcessedPlaceholder) {
+      els.pendulumProcessedPlaceholder.classList.toggle("hidden", hasPlayableVideo);
+      els.pendulumProcessedPlaceholder.textContent = !hasResult
+        ? "完成分析后显示带检测点与轨迹标注的视频。"
+        : APP.pendulum.processedVideoLoading
+          ? "正在加载带检测点与轨迹标注的视频。"
+          : missingProcessedReason;
+    }
+    if (!els.pendulumProcessedVideo) return;
+    if (!hasPlayableVideo) {
+      els.pendulumProcessedVideo.pause?.();
+      els.pendulumProcessedVideo.classList.add("hidden");
+      return;
+    }
+    if (els.pendulumProcessedVideo.src !== APP.pendulum.processedVideoUrl) {
+      els.pendulumProcessedVideo.src = APP.pendulum.processedVideoUrl;
+      els.pendulumProcessedVideo.load?.();
+    }
+    els.pendulumProcessedVideo.classList.remove("hidden");
+  }
+
+  function handlePendulumProcessedVideoPlaybackError() {
+    if (!APP.pendulum.processedVideoUrl) return;
+    URL.revokeObjectURL(APP.pendulum.processedVideoUrl);
+    APP.pendulum.processedVideoUrl = "";
+    APP.pendulum.processedVideoError = "浏览器无法播放这份标注视频，已切换为重新分析时生成 WebM 格式。";
+    APP.pendulum.status = "单摆周期测量完成；处理后视频无法播放。";
+    if (els.pendulumProcessedVideo) {
+      els.pendulumProcessedVideo.pause?.();
+      els.pendulumProcessedVideo.removeAttribute("src");
+      els.pendulumProcessedVideo.classList.add("hidden");
+    }
+    renderPendulumLab();
+  }
+
+  async function loadPendulumProcessedVideo(result) {
+    clearPendulumProcessedVideo();
+    const source = String(result?.processed_video_url || "");
+    if (!source) {
+      renderPendulumLab();
+      return;
+    }
+    APP.pendulum.processedVideoLoading = true;
+    APP.pendulum.processedVideoSource = source;
+    APP.pendulum.processedVideoError = "";
+    renderPendulumLab();
+    try {
+      const response = await fetch(source, { method: "GET" });
+      if (!response.ok) {
+        throw new Error(await readApiErrorMessage(response, `处理后视频加载失败 (${response.status})`));
+      }
+      const blob = await response.blob();
+      if (APP.pendulum.result !== result || APP.pendulum.processedVideoSource !== source) {
+        return;
+      }
+      APP.pendulum.processedVideoUrl = URL.createObjectURL(blob);
+    } catch (error) {
+      APP.pendulum.processedVideoError = error?.message || "处理后视频加载失败";
+    } finally {
+      if (APP.pendulum.result === result && APP.pendulum.processedVideoSource === source) {
+        APP.pendulum.processedVideoLoading = false;
+        APP.pendulum.status = APP.pendulum.processedVideoError
+          ? "单摆周期测量完成；处理后视频加载失败。"
+          : "单摆周期测量完成，处理后视频已就绪。";
+      }
+      renderPendulumLab();
+    }
+  }
+
+  function setPendulumVideoFile(file) {
+    if (!file) return;
+    if (!isSupportedPendulumVideo(file)) {
+      APP.pendulum.error = "请上传 mp4、webm、mov、avi 或 mkv 格式的视频。";
+      renderPendulumLab();
+      showToast(APP.pendulum.error);
+      return;
+    }
+    stopPendulumRecording({ discard: true });
+    if (APP.pendulum.videoUrl) {
+      URL.revokeObjectURL(APP.pendulum.videoUrl);
+    }
+    clearPendulumProcessedVideo();
+    APP.pendulum.videoFile = file;
+    APP.pendulum.videoUrl = URL.createObjectURL(file);
+    APP.pendulum.result = null;
+    APP.pendulum.error = "";
+    APP.pendulum.status = `已载入视频：${file.name}`;
+    renderPendulumLab();
+    openPendulumLabModal();
+  }
+
+  function isSupportedPendulumVideo(file) {
+    const name = String(file?.name || "").toLowerCase();
+    const type = String(file?.type || "").toLowerCase();
+    return (
+      type.startsWith("video/")
+      || /\.(mp4|webm|mov|m4v|avi|mkv)$/i.test(name)
+    );
+  }
+
+  function resetPendulumLab() {
+    stopPendulumRecording({ discard: true });
+    if (APP.pendulum.videoUrl) {
+      URL.revokeObjectURL(APP.pendulum.videoUrl);
+    }
+    clearPendulumProcessedVideo();
+    APP.pendulum.videoFile = null;
+    APP.pendulum.videoUrl = "";
+    APP.pendulum.result = null;
+    APP.pendulum.status = "请选择单摆实验视频。";
+    APP.pendulum.error = "";
+    APP.pendulum.recordingChunks = [];
+    renderPendulumLab();
+    stopPendulumTrajectoryAnimation();
+  }
+
+  async function togglePendulumRecording() {
+    if (APP.pendulum.recording) {
+      stopPendulumRecording();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      showToast("当前浏览器不支持视频录制");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      const preferredMime = [
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm",
+      ].find((mime) => MediaRecorder.isTypeSupported?.(mime));
+      const recorder = preferredMime ? new MediaRecorder(stream, { mimeType: preferredMime }) : new MediaRecorder(stream);
+      APP.pendulum.recordingStream = stream;
+      APP.pendulum.mediaRecorder = recorder;
+      APP.pendulum.recordingChunks = [];
+      APP.pendulum.recordingDiscard = false;
+      APP.pendulum.recording = true;
+      APP.pendulum.error = "";
+      APP.pendulum.status = "正在录制单摆视频。";
+
+      if (els.pendulumVideoPreview) {
+        els.pendulumVideoPreview.src = "";
+        els.pendulumVideoPreview.srcObject = stream;
+        els.pendulumVideoPreview.controls = false;
+        els.pendulumVideoPreview.muted = true;
+        els.pendulumVideoPreview.classList.remove("hidden");
+        els.pendulumVideoPreview.play?.().catch(() => {});
+      }
+
+      recorder.addEventListener("dataavailable", (event) => {
+        if (event.data?.size) {
+          APP.pendulum.recordingChunks.push(event.data);
+        }
+      });
+
+      recorder.addEventListener("stop", () => {
+        finalizePendulumRecording(recorder.mimeType || "video/webm");
+      }, { once: true });
+
+      recorder.start();
+      renderPendulumLab();
+      showToast("单摆视频录制已开始");
+    } catch (error) {
+      APP.pendulum.error = `无法开始录制：${error.message || "未知错误"}`;
+      renderPendulumLab();
+      showToast(APP.pendulum.error);
+      stopPendulumRecording({ discard: true });
+    }
+  }
+
+  function stopPendulumRecording({ discard = false } = {}) {
+    APP.pendulum.recordingDiscard = Boolean(discard);
+    const recorder = APP.pendulum.mediaRecorder;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+      return;
+    }
+    stopPendulumRecordingStream();
+    APP.pendulum.recording = false;
+    renderPendulumRecordingState();
+  }
+
+  function stopPendulumRecordingStream() {
+    APP.pendulum.recordingStream?.getTracks?.().forEach((track) => track.stop());
+    APP.pendulum.recordingStream = null;
+  }
+
+  function finalizePendulumRecording(mimeType) {
+    const chunks = APP.pendulum.recordingChunks || [];
+    const discard = APP.pendulum.recordingDiscard;
+    APP.pendulum.recording = false;
+    APP.pendulum.mediaRecorder = null;
+    APP.pendulum.recordingChunks = [];
+    stopPendulumRecordingStream();
+
+    if (discard || !chunks.length) {
+      renderPendulumLab();
+      return;
+    }
+
+    const blob = new Blob(chunks, { type: mimeType || "video/webm" });
+    if (!blob.size) {
+      APP.pendulum.error = "录制视频为空，请重新录制。";
+      renderPendulumLab();
+      return;
+    }
+    const filename = `pendulum-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
+    const file = new File([blob], filename, { type: blob.type || "video/webm" });
+    setPendulumVideoFile(file);
+    APP.pendulum.status = `录制完成：${filename}`;
+    renderPendulumLab();
+  }
+
+  async function analyzePendulumVideo({ prompt = "帮我测单摆周期", appendToChat = true } = {}) {
+    if (APP.auth.enabled && !APP.auth.user) {
+      setAuthGateVisible(true);
+      showToast("请先登录后再分析单摆视频");
+      return null;
+    }
+    if (!APP.pendulum.videoFile) {
+      openPendulumLabModal();
+      APP.pendulum.error = "请先选择或录制单摆实验视频。";
+      renderPendulumLab();
+      showToast(APP.pendulum.error);
+      return null;
+    }
+    if (APP.sending) {
+      showToast("正在处理上一条请求，请稍候");
+      return null;
+    }
+
+    const rawLength = String(els.pendulumLengthInput?.value || "").trim();
+    const hasLength = rawLength !== "";
+    const lengthM = hasLength ? Number(rawLength) : null;
+    const gravity = Number(els.pendulumGravityInput?.value || "9.8");
+    const detector = els.pendulumDetectorSelect?.value || "auto";
+    if (hasLength && (!Number.isFinite(lengthM) || lengthM <= 0)) {
+      APP.pendulum.error = "摆长 L 必须大于 0。";
+      renderPendulumLab();
+      showToast(APP.pendulum.error);
+      return null;
+    }
+    if (!Number.isFinite(gravity) || gravity <= 0) {
+      APP.pendulum.error = "重力加速度 g 必须大于 0。";
+      renderPendulumLab();
+      showToast(APP.pendulum.error);
+      return null;
+    }
+
+    APP.sending = true;
+    if (els.sendBtn) els.sendBtn.disabled = true;
+    if (els.recordBtn) els.recordBtn.disabled = true;
+    APP.pendulum.error = "";
+    APP.pendulum.status = "正在进行摆球检测与周期计算。";
+    renderPendulumLab();
+
+    let loadingRow = null;
+    if (appendToChat) {
+      appendUserMessage(`[单摆周期测量]\n${prompt}\n视频文件：${APP.pendulum.videoFile.name}`);
+      if (prompt) pushHistory(prompt);
+      loadingRow = appendLoadingMessage();
+    }
+
+    try {
+      const form = new FormData();
+      form.append("session_id", APP.sessionId);
+      if (hasLength) form.append("length_m", String(lengthM));
+      form.append("gravity", String(gravity));
+      form.append("detector", detector);
+      form.append("message", prompt || "帮我测单摆周期");
+      form.append("video", APP.pendulum.videoFile, APP.pendulum.videoFile.name || "pendulum-video.webm");
+
+      const result = await runWithBusyButton(els.pendulumAnalyzeBtn, "分析中", async () => {
+        const response = await fetch("/api/physics/pendulum/analyze", { method: "POST", body: form });
+        if (!response.ok) {
+          throw new Error(await readApiErrorMessage(response, `单摆分析失败 (${response.status})`));
+        }
+        return await response.json();
+      });
+
+      APP.pendulum.result = result;
+      APP.pendulum.status = result.processed_video_url ? "单摆周期测量完成，正在加载处理后视频。" : "单摆周期测量完成。";
+      APP.pendulum.error = "";
+      renderPendulumLab();
+      loadPendulumProcessedVideo(result).catch(() => {});
+      showToast("单摆周期测量完成");
+
+      if (appendToChat) {
+        loadingRow?.remove();
+        await hydrateSession();
+      }
+      return result;
+    } catch (error) {
+      loadingRow?.remove();
+      APP.pendulum.error = error.message || "单摆视频分析失败";
+      renderPendulumLab();
+      if (appendToChat) {
+        appendAgentMessage(`单摆视频分析失败：${APP.pendulum.error}`);
+      }
+      showToast(APP.pendulum.error);
+      return null;
+    } finally {
+      APP.sending = false;
+      if (els.sendBtn) els.sendBtn.disabled = false;
+      if (els.recordBtn) els.recordBtn.disabled = false;
+      scrollChatToBottom();
+      refreshQuickJumpPanel();
+    }
+  }
+
+  async function readApiErrorMessage(response, fallback) {
+    const text = await response.text().catch(() => "");
+    if (!text.trim()) return fallback;
+    try {
+      const data = JSON.parse(text);
+      return data.detail || fallback;
+    } catch {
+      return text.trim() || fallback;
+    }
+  }
+
+  function buildPendulumCurveSvg(result) {
+    const trajectory = Array.isArray(result?.trajectory) ? result.trajectory : [];
+    if (trajectory.length < 2) {
+      return '<div class="pendulum-placeholder">轨迹点不足，无法绘制周期曲线。</div>';
+    }
+    const width = 760;
+    const height = 300;
+    const padLeft = 52;
+    const padRight = 22;
+    const padTop = 24;
+    const padBottom = 42;
+    const xs = trajectory.map((point) => Number(point.x_smooth ?? point.x)).filter(Number.isFinite);
+    const ts = trajectory.map((point) => Number(point.t)).filter(Number.isFinite);
+    if (xs.length < 2 || ts.length < 2) {
+      return '<div class="pendulum-placeholder">轨迹时间序列不足，无法绘制周期曲线。</div>';
+    }
+    const meanX = xs.reduce((sum, value) => sum + value, 0) / xs.length;
+    const values = trajectory.map((point) => Number(point.x_smooth ?? point.x) - meanX);
+    const tMin = Math.min(...trajectory.map((point) => Number(point.t)).filter(Number.isFinite));
+    const tMax = Math.max(...trajectory.map((point) => Number(point.t)).filter(Number.isFinite));
+    const yMin = Math.min(...values);
+    const yMax = Math.max(...values);
+    const x0 = padLeft;
+    const x1 = width - padRight;
+    const y0 = padTop;
+    const y1 = height - padBottom;
+    const scaleX = (t) => x0 + ((t - tMin) / Math.max(tMax - tMin, 1e-9)) * (x1 - x0);
+    const scaleY = (value) => y1 - ((value - yMin) / Math.max(yMax - yMin, 1e-9)) * (y1 - y0);
+    const path = trajectory
+      .map((point, index) => {
+        const x = scaleX(Number(point.t));
+        const y = scaleY(Number(point.x_smooth ?? point.x) - meanX);
+        return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+      })
+      .join(" ");
+    const zeroY = scaleY(0);
+    const ticks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => tMin + (tMax - tMin) * ratio);
+    const grid = ticks.map((tick) => {
+      const x = scaleX(tick);
+      return `
+        <line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="rgba(72, 96, 132, 0.12)" stroke-width="1" />
+        <text x="${x}" y="${height - 16}" text-anchor="middle" fill="#51627b" font-size="12">${escapeHtml(formatPendulumNumber(tick, 2))}</text>
+      `;
+    }).join("");
+    return `
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="单摆横向位移周期曲线">
+        <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(248,251,255,0.96)" />
+        ${grid}
+        <line x1="${x0}" y1="${zeroY}" x2="${x1}" y2="${zeroY}" stroke="rgba(35,49,73,0.32)" stroke-dasharray="5 6" />
+        <line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="#425673" stroke-width="1.7" />
+        <line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}" stroke="#425673" stroke-width="1.7" />
+        <path d="${path}" fill="none" stroke="#2f7f78" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="${x0}" y="${height - 16}" fill="#263954" font-size="13" font-weight="700">t / s</text>
+        <text x="20" y="${y0 + 8}" fill="#263954" font-size="13" font-weight="700" transform="rotate(-90 20 ${y0 + 8})">x - x̄ / px</text>
+      </svg>
+    `;
+  }
+
+  function buildPendulumSummaryMarkup(result) {
+    const stability = result.stability || {};
+    const hasTheory = Number.isFinite(Number(result.period_theoretical)) && Number.isFinite(Number(result.error));
+    const theoryLine = hasTheory
+      ? `实验周期 <code>${escapeHtml(formatPendulumNumber(result.period_experimental, 4))} s</code>，理论周期 <code>${escapeHtml(formatPendulumNumber(result.period_theoretical, 4))} s</code>，相对误差 <code>${escapeHtml(formatPendulumPercent(result.error))}</code>。`
+      : `实验周期 <code>${escapeHtml(formatPendulumNumber(result.period_experimental, 4))} s</code>；未输入实测摆长，暂不计算理论误差，反推等效摆长约 <code>${escapeHtml(formatPendulumNumber(result.length_equivalent_m, 4))} m</code>。`;
+    const items = [
+      `<div class="data-lab-summary-item">${theoryLine}</div>`,
+      `<div class="data-lab-summary-item">检测器：请求 <code>${escapeHtml(result.detector_requested || "auto")}</code>，实际 <code>${escapeHtml(result.detector || "opencv")}</code>；有效检测率：<code>${escapeHtml(formatPendulumPercent(result.detection_rate))}</code>。</div>`,
+      `<div class="data-lab-summary-item">周期计算方法：<code>${escapeHtml(result.period_method || "视觉轨迹分析")}</code>；检测命中：<code>YOLO ${escapeHtml(String(result.detector_hits?.yolov5 || 0))}</code> / <code>OpenCV ${escapeHtml(String(result.detector_hits?.opencv || 0))}</code>。</div>`,
+      `<div class="data-lab-summary-item">稳定性：<code>${escapeHtml(stability.level || "样本不足")}</code>${Number.isFinite(Number(stability.coefficient_variation_percent)) ? `，变异系数 <code>${escapeHtml(formatPendulumNumber(stability.coefficient_variation_percent, 2))}%</code>` : ""}。</div>`,
+      ...(result.theory_note ? [`<div class="data-lab-summary-item">${escapeHtml(result.theory_note)}</div>`] : []),
+      ...(Array.isArray(result.detector_notes) && result.detector_notes.length ? [`<div class="pendulum-explain-block">${escapeHtml(result.detector_notes.join("\n")).replace(/\n/g, "<br>")}</div>`] : []),
+      `<div class="pendulum-explain-block">${escapeHtml(result.analysis || "").replace(/\n/g, "<br>")}</div>`,
+      `<div class="pendulum-advice-block">${escapeHtml(result.advice || "").replace(/\n/g, "<br>")}</div>`,
+    ];
+    return items.join("");
+  }
+
+  function renderPendulumTrajectoryEmpty() {
+    const canvas = els.pendulumTrajectoryCanvas;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cssW = Math.max(320, Math.round(rect.width || canvas.clientWidth || 360));
+    const cssH = Math.max(240, Math.round(rect.height || canvas.clientHeight || 280));
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+    ctx.fillStyle = "#f8fbff";
+    ctx.fillRect(0, 0, cssW, cssH);
+    ctx.fillStyle = "#5c6d84";
+    ctx.font = "14px 'Microsoft YaHei', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("完成分析后显示摆球轨迹动画", cssW / 2, cssH / 2);
+  }
+
+  function startPendulumTrajectoryAnimation() {
+    stopPendulumTrajectoryAnimation();
+    if (!APP.pendulum.isOpen || !APP.pendulum.result) {
+      renderPendulumTrajectoryEmpty();
+      return;
+    }
+    APP.pendulum.animationStartedAt = performance.now();
+    const tick = (ts) => {
+      renderPendulumTrajectoryFrame(ts);
+      if (APP.pendulum.isOpen && APP.pendulum.result) {
+        APP.pendulum.animationRaf = requestAnimationFrame(tick);
+      }
+    };
+    APP.pendulum.animationRaf = requestAnimationFrame(tick);
+  }
+
+  function stopPendulumTrajectoryAnimation() {
+    if (APP.pendulum.animationRaf) {
+      cancelAnimationFrame(APP.pendulum.animationRaf);
+      APP.pendulum.animationRaf = 0;
+    }
+  }
+
+  function renderPendulumTrajectoryFrame(ts = performance.now()) {
+    const canvas = els.pendulumTrajectoryCanvas;
+    const trajectory = Array.isArray(APP.pendulum.result?.trajectory) ? APP.pendulum.result.trajectory : [];
+    if (!canvas || trajectory.length < 2) {
+      renderPendulumTrajectoryEmpty();
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const cssW = Math.max(320, Math.round(rect.width || canvas.clientWidth || 420));
+    const cssH = Math.max(250, Math.round(rect.height || canvas.clientHeight || 300));
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) {
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      canvas.style.width = `${cssW}px`;
+      canvas.style.height = `${cssH}px`;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+    const xs = trajectory.map((point) => Number(point.x_smooth ?? point.x)).filter(Number.isFinite);
+    const ys = trajectory.map((point) => Number(point.y_smooth ?? point.y)).filter(Number.isFinite);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const pad = 28;
+    const scaleX = (value) => pad + ((value - minX) / Math.max(maxX - minX, 1e-9)) * (cssW - pad * 2);
+    const scaleY = (value) => pad + ((value - minY) / Math.max(maxY - minY, 1e-9)) * (cssH - pad * 2);
+
+    const gradient = ctx.createLinearGradient(0, 0, cssW, cssH);
+    gradient.addColorStop(0, "#f8fbff");
+    gradient.addColorStop(1, "#edf4f8");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    ctx.strokeStyle = "rgba(72, 96, 132, 0.12)";
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 5; i += 1) {
+      const gx = pad + ((cssW - pad * 2) / 5) * i;
+      const gy = pad + ((cssH - pad * 2) / 5) * i;
+      ctx.beginPath();
+      ctx.moveTo(gx, pad);
+      ctx.lineTo(gx, cssH - pad);
+      ctx.moveTo(pad, gy);
+      ctx.lineTo(cssW - pad, gy);
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    trajectory.forEach((point, index) => {
+      const x = scaleX(Number(point.x_smooth ?? point.x));
+      const y = scaleY(Number(point.y_smooth ?? point.y));
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = "rgba(47, 127, 120, 0.72)";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+
+    const elapsed = ((ts - APP.pendulum.animationStartedAt) / 1000) % Math.max(1, trajectory.length / 26);
+    const activeIndex = Math.min(trajectory.length - 1, Math.floor((elapsed * 26) % trajectory.length));
+    const active = trajectory[activeIndex];
+    const activeX = scaleX(Number(active.x_smooth ?? active.x));
+    const activeY = scaleY(Number(active.y_smooth ?? active.y));
+    ctx.beginPath();
+    ctx.arc(activeX, activeY, 9, 0, Math.PI * 2);
+    ctx.fillStyle = "#2f7f78";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(activeX, activeY, 15, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(47, 127, 120, 0.22)";
+    ctx.lineWidth = 6;
+    ctx.stroke();
+  }
+
+  function sendPendulumResultToChat() {
+    if (!APP.pendulum.result) {
+      showToast("请先完成单摆周期测量。");
+      return;
+    }
+    const prompt = buildPendulumFollowupPrompt(APP.pendulum.result);
+    closePendulumLabModal({ skipHistory: true });
+    els.chatInput.value = prompt;
+    autoResizeTextarea(els.chatInput);
+    sendMessage(prompt, { skipPendulumRouting: true });
+  }
+
+  function buildPendulumFollowupPrompt(result) {
+    const hasTheory = Number.isFinite(Number(result.period_theoretical)) && Number.isFinite(Number(result.error));
+    return [
+      "请基于刚才的单摆视频测量结果，进一步用实验报告语言解释：",
+      `实验周期 T_exp = ${formatPendulumNumber(result.period_experimental, 4)} s。`,
+      hasTheory
+        ? `理论周期 T_theory = ${formatPendulumNumber(result.period_theoretical, 4)} s，相对误差 = ${formatPendulumPercent(result.error)}。`
+        : `未输入实测摆长，暂不计算理论误差；由实验周期反推等效摆长 L_eff = ${formatPendulumNumber(result.length_equivalent_m, 4)} m。`,
+      result.length_input_provided
+        ? `摆长 L = ${formatPendulumNumber(result.length_m, 4)} m，g = ${formatPendulumNumber(result.gravity, 3)} m/s^2。`
+        : `g = ${formatPendulumNumber(result.gravity, 3)} m/s^2。`,
+      "请说明误差来源、是否满足小角近似，并给出下一次实验的操作改进建议。",
+    ].join("\n");
+  }
+
+  function shouldRouteToPendulumAnalysis(text, options = {}) {
+    if (options.skipPendulumRouting || options.hiddenImage || options.externalLabContext || APP.pendingImage || APP.pendingAudio) {
+      return false;
+    }
+    const clean = String(text || "").trim();
+    if (!clean) return false;
+    if (/(?:为什么|原理|公式|推导|解释|讲解|区别|对比|意义|怎么理解|是什么|什么是|why|what is|explain)/i.test(clean)) {
+      return false;
+    }
+    return /(?:单摆|摆动视频|摆球|pendulum)/i.test(clean)
+      && /(?:视频|上传|拍摄|录像|帮我测|帮我分析|自动测量|自动分析)/i.test(clean);
+  }
+
+  function formatPendulumNumber(value, digits = 3) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return "--";
+    return numeric.toFixed(digits);
+  }
+
+  function formatPendulumPercent(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return "--";
+    return `${(numeric * 100).toFixed(2)}%`;
+  }
+
+  function formatFileSize(bytes) {
+    const size = Number(bytes);
+    if (!Number.isFinite(size) || size <= 0) return "0 KB";
+    if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+    return `${Math.max(1, Math.round(size / 1024))} KB`;
+  }
+
+  function pendulumDetectorHint(detector) {
+    if (detector === "yolov5") {
+      return "将严格使用 YOLOv5 检测摆球；建议先配置自训练 pendulum_bob 权重。";
+    }
+    if (detector === "opencv") {
+      return "将使用传统视觉候选点检测，适合快速回退对照。";
+    }
+    return "自动模式会优先尝试 YOLOv5，识别不足时回退传统视觉。";
+  }
+
+  function openTorsionLabModal() {
+    const wasOpen = APP.torsion.isOpen;
+    APP.torsion.isOpen = true;
+    els.torsionLabModal?.classList.remove("hidden");
+    syncImmersiveState();
+    renderTorsionLab();
+    if (!wasOpen) pushUiHistoryView("torsion-lab");
+  }
+
+  function closeTorsionLabModal({ skipHistory = false } = {}) {
+    if (!skipHistory && (history.state?.[UI_VIEW_STATE_KEY] || "root") === "torsion-lab") {
+      history.back();
+      return;
+    }
+    APP.torsion.isOpen = false;
+    if (skipHistory && (history.state?.[UI_VIEW_STATE_KEY] || "root") === "torsion-lab") {
+      replaceUiHistoryView("root");
+    }
+    stopTorsionLiveAnalysis({ silent: true });
+    els.torsionLabModal?.classList.add("hidden");
+    syncImmersiveState();
+  }
+
+  function renderTorsionLab() {
+    els.openTorsionLabBtn?.classList.toggle("active", APP.torsion.isOpen);
+    renderTorsionVideoPreview();
+    renderTorsionStatus(APP.torsion.error || APP.torsion.status, Boolean(APP.torsion.error));
+    renderTorsionResult(APP.torsion.result);
+  }
+
+  function renderTorsionVideoPreview() {
+    const file = APP.torsion.videoFile;
+    if (els.torsionVideoMeta) {
+      els.torsionVideoMeta.textContent = APP.torsion.liveActive
+        ? `实时摄像头 · ${APP.torsion.liveDetectedFrames}/${APP.torsion.liveFrameIndex} 帧`
+        : file ? `${file.name} · ${formatFileSize(file.size)}` : "mp4 / webm / mov / avi / mkv";
+    }
+    if (els.torsionLiveBtn) {
+      els.torsionLiveBtn.classList.toggle("recording", APP.torsion.liveActive);
+      const label = els.torsionLiveBtn.querySelector("span");
+      if (label) label.textContent = APP.torsion.liveActive ? "停止实时" : "实时测量";
+    }
+    if (!els.torsionVideoPreview) return;
+    if (APP.torsion.liveActive && APP.torsion.liveStream) {
+      if (els.torsionVideoPreview.srcObject !== APP.torsion.liveStream) {
+        els.torsionVideoPreview.pause?.();
+        els.torsionVideoPreview.removeAttribute("src");
+        els.torsionVideoPreview.srcObject = APP.torsion.liveStream;
+      }
+      els.torsionVideoPreview.controls = false;
+      els.torsionVideoPreview.muted = true;
+      els.torsionVideoPreview.classList.remove("hidden");
+      els.torsionLiveOverlayCanvas?.classList.remove("hidden");
+      return;
+    }
+    if (els.torsionVideoPreview.srcObject) {
+      els.torsionVideoPreview.srcObject = null;
+    }
+    els.torsionLiveOverlayCanvas?.classList.add("hidden");
+    if (!file || !APP.torsion.videoUrl) {
+      els.torsionVideoPreview.pause?.();
+      els.torsionVideoPreview.removeAttribute("src");
+      els.torsionVideoPreview.classList.add("hidden");
+      return;
+    }
+    if (els.torsionVideoPreview.src !== APP.torsion.videoUrl) {
+      els.torsionVideoPreview.controls = true;
+      els.torsionVideoPreview.muted = true;
+      els.torsionVideoPreview.src = APP.torsion.videoUrl;
+    }
+    els.torsionVideoPreview.classList.remove("hidden");
+  }
+
+  function renderTorsionStatus(message, isError = false) {
+    if (!els.torsionStatus) return;
+    els.torsionStatus.textContent = message || "";
+    els.torsionStatus.classList.toggle("is-error", Boolean(isError));
+  }
+
+  function renderTorsionResult(result) {
+    const hasResult = Boolean(result);
+    if (els.torsionMetricPeriod) els.torsionMetricPeriod.textContent = hasResult ? `${formatPendulumNumber(result.period_experimental, 4)} s` : "-- s";
+    if (els.torsionMetricInertia) {
+      els.torsionMetricInertia.textContent = hasResult && Number.isFinite(Number(result.moment_inertia))
+        ? `${formatPendulumNumber(result.moment_inertia, 8)} kg·m²`
+        : "需 κ";
+    }
+    if (els.torsionMetricKappa) {
+      els.torsionMetricKappa.textContent = hasResult && Number.isFinite(Number(result.torsion_constant))
+        ? `${formatPendulumNumber(result.torsion_constant, 6)}`
+        : "--";
+    }
+    if (els.torsionMetricStability) {
+      els.torsionMetricStability.textContent = hasResult ? (result.stability?.level || "样本不足") : "--";
+    }
+    if (els.torsionDetectionMeta) {
+      const hits = result?.detector_hits || {};
+      els.torsionDetectionMeta.textContent = hasResult
+        ? `检测 ${result.detected_points || 0}/${result.frame_count || 0} 帧 · ${result.detector || "opencv"} · YOLO ${hits.yolov5 || 0} 帧`
+        : "等待分析";
+    }
+    if (els.torsionCurveCaption) {
+      els.torsionCurveCaption.textContent = hasResult
+        ? `主频 ${formatPendulumNumber(result.dominant_frequency_hz, 4)} Hz · FPS ${formatPendulumNumber(result.fps, 2)}`
+        : "θ(t) 随时间变化";
+    }
+    if (els.torsionCurvePlot) {
+      els.torsionCurvePlot.innerHTML = hasResult ? buildTorsionCurveSvg(result) : '<div class="pendulum-placeholder">完成分析后显示 θ(t) 角度曲线。</div>';
+    }
+    if (els.torsionResultSummary) {
+      els.torsionResultSummary.innerHTML = hasResult ? buildTorsionSummaryMarkup(result) : '<div class="data-lab-summary-empty">完成分析后，这里会显示周期、转动惯量与操作改进建议。</div>';
+    }
+    if (els.torsionSendToChatBtn) els.torsionSendToChatBtn.disabled = !hasResult;
+    renderTorsionProcessedVideo(result);
+  }
+
+  function clearTorsionProcessedVideo() {
+    if (APP.torsion.processedVideoUrl) URL.revokeObjectURL(APP.torsion.processedVideoUrl);
+    APP.torsion.processedVideoUrl = "";
+    APP.torsion.processedVideoSource = "";
+    APP.torsion.processedVideoLoading = false;
+    APP.torsion.processedVideoError = "";
+    if (els.torsionProcessedVideo) {
+      els.torsionProcessedVideo.pause?.();
+      els.torsionProcessedVideo.removeAttribute("src");
+      els.torsionProcessedVideo.load?.();
+    }
+  }
+
+  function renderTorsionProcessedVideo(result) {
+    const hasResult = Boolean(result);
+    const hasProcessedSource = Boolean(result?.processed_video_url);
+    const hasPlayableVideo = Boolean(APP.torsion.processedVideoUrl);
+    const message = !hasResult
+      ? "完成分析后显示带角度标注的视频。"
+      : result.live
+        ? "实时模式已在摄像头画面上叠加检测线，不生成离线标注视频。"
+      : APP.torsion.processedVideoError
+        ? APP.torsion.processedVideoError
+        : result.processed_video_created === false
+          ? (result.processed_video_error || "后端未能生成扭摆标注视频。")
+          : hasProcessedSource
+            ? "处理后视频已生成，正在准备播放。"
+            : "本次分析未生成处理后视频。";
+    if (els.torsionProcessedMeta) {
+      els.torsionProcessedMeta.textContent = !hasResult
+        ? "等待分析"
+        : result.live
+          ? "实时标注"
+        : APP.torsion.processedVideoLoading
+          ? "正在加载标注视频"
+          : hasPlayableVideo
+            ? `${result.detector_requested || "auto"} → ${result.detector || "opencv"}`
+            : APP.torsion.processedVideoError
+              ? "标注视频加载失败"
+              : hasProcessedSource
+                ? "可加载处理后视频"
+                : "未生成标注视频";
+    }
+    if (els.torsionProcessedPlaceholder) {
+      els.torsionProcessedPlaceholder.classList.toggle("hidden", hasPlayableVideo);
+      els.torsionProcessedPlaceholder.textContent = APP.torsion.processedVideoLoading ? "正在加载带角度标注的视频。" : message;
+    }
+    if (!els.torsionProcessedVideo) return;
+    if (!hasPlayableVideo) {
+      els.torsionProcessedVideo.pause?.();
+      els.torsionProcessedVideo.classList.add("hidden");
+      return;
+    }
+    if (els.torsionProcessedVideo.src !== APP.torsion.processedVideoUrl) {
+      els.torsionProcessedVideo.src = APP.torsion.processedVideoUrl;
+      els.torsionProcessedVideo.load?.();
+    }
+    els.torsionProcessedVideo.classList.remove("hidden");
+  }
+
+  async function loadTorsionProcessedVideo(result) {
+    clearTorsionProcessedVideo();
+    const source = String(result?.processed_video_url || "");
+    if (!source) {
+      renderTorsionLab();
+      return;
+    }
+    APP.torsion.processedVideoLoading = true;
+    APP.torsion.processedVideoSource = source;
+    APP.torsion.processedVideoError = "";
+    renderTorsionLab();
+    try {
+      const response = await fetch(source, { method: "GET" });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, `处理后视频加载失败 (${response.status})`));
+      const blob = await response.blob();
+      if (APP.torsion.result !== result || APP.torsion.processedVideoSource !== source) return;
+      APP.torsion.processedVideoUrl = URL.createObjectURL(blob);
+    } catch (error) {
+      APP.torsion.processedVideoError = error?.message || "处理后视频加载失败";
+    } finally {
+      if (APP.torsion.result === result && APP.torsion.processedVideoSource === source) {
+        APP.torsion.processedVideoLoading = false;
+        APP.torsion.status = APP.torsion.processedVideoError ? "扭摆测量完成；处理后视频加载失败。" : "扭摆测量完成，处理后视频已就绪。";
+      }
+      renderTorsionLab();
+    }
+  }
+
+  function handleTorsionProcessedVideoPlaybackError() {
+    if (!APP.torsion.processedVideoUrl) return;
+    URL.revokeObjectURL(APP.torsion.processedVideoUrl);
+    APP.torsion.processedVideoUrl = "";
+    APP.torsion.processedVideoError = "浏览器无法播放这份扭摆标注视频。";
+    APP.torsion.status = "扭摆测量完成；处理后视频无法播放。";
+    if (els.torsionProcessedVideo) {
+      els.torsionProcessedVideo.pause?.();
+      els.torsionProcessedVideo.removeAttribute("src");
+      els.torsionProcessedVideo.classList.add("hidden");
+    }
+    renderTorsionLab();
+  }
+
+  function setTorsionVideoFile(file) {
+    if (!file) return;
+    if (!isSupportedPendulumVideo(file)) {
+      APP.torsion.error = "请上传 mp4、webm、mov、avi 或 mkv 格式的视频。";
+      renderTorsionLab();
+      showToast(APP.torsion.error);
+      return;
+    }
+    stopTorsionLiveAnalysis({ silent: true });
+    if (APP.torsion.videoUrl) URL.revokeObjectURL(APP.torsion.videoUrl);
+    clearTorsionProcessedVideo();
+    APP.torsion.videoFile = file;
+    APP.torsion.videoUrl = URL.createObjectURL(file);
+    APP.torsion.result = null;
+    APP.torsion.error = "";
+    APP.torsion.status = `已载入视频：${file.name}`;
+    renderTorsionLab();
+    openTorsionLabModal();
+  }
+
+  function resetTorsionLab() {
+    stopTorsionLiveAnalysis({ silent: true });
+    if (APP.torsion.videoUrl) URL.revokeObjectURL(APP.torsion.videoUrl);
+    clearTorsionProcessedVideo();
+    APP.torsion.videoFile = null;
+    APP.torsion.videoUrl = "";
+    APP.torsion.result = null;
+    APP.torsion.status = "请选择扭摆实验视频。";
+    APP.torsion.error = "";
+    renderTorsionLab();
+  }
+
+  async function startTorsionLiveAnalysis() {
+    if (!APP.auth.token) {
+      showToast("请先登录后再进行实时测量");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      APP.torsion.error = "当前浏览器不支持摄像头实时测量。";
+      renderTorsionLab();
+      showToast(APP.torsion.error);
+      return;
+    }
+
+    let initialAngleDeg = null;
+    try {
+      initialAngleDeg = readOptionalFiniteNumber(els.torsionInitialAngleInput, "初始角 θ0");
+    } catch (error) {
+      APP.torsion.error = error.message || "初始角参数无效";
+      renderTorsionLab();
+      showToast(APP.torsion.error);
+      return;
+    }
+
+    stopTorsionLiveAnalysis({ silent: true });
+    if (APP.torsion.videoUrl) URL.revokeObjectURL(APP.torsion.videoUrl);
+    clearTorsionProcessedVideo();
+    APP.torsion.videoFile = null;
+    APP.torsion.videoUrl = "";
+    APP.torsion.result = null;
+    APP.torsion.error = "";
+    APP.torsion.status = "正在请求摄像头权限。";
+    renderTorsionLab();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+      APP.torsion.liveStream = stream;
+      APP.torsion.liveActive = true;
+      APP.torsion.livePending = false;
+      APP.torsion.liveStartedAt = performance.now();
+      APP.torsion.liveFrameIndex = 0;
+      APP.torsion.liveDetectedFrames = 0;
+      APP.torsion.liveAngleOffsetDeg = null;
+      APP.torsion.liveInitialAngleDeg = initialAngleDeg;
+      APP.torsion.liveLastRawAngleDeg = null;
+      APP.torsion.liveSeries = [];
+      APP.torsion.liveDetectorHits = { yolov5: 0, opencv: 0 };
+      APP.torsion.liveLastGeometry = null;
+      APP.torsion.liveFrameSize = null;
+      APP.torsion.status = "实时测量已启动，请让横杆或红色标记完整出现在画面中。";
+      renderTorsionLab();
+
+      if (els.torsionVideoPreview) {
+        els.torsionVideoPreview.srcObject = stream;
+        els.torsionVideoPreview.controls = false;
+        els.torsionVideoPreview.muted = true;
+        els.torsionVideoPreview.classList.remove("hidden");
+        await els.torsionVideoPreview.play?.().catch(() => {});
+      }
+      scheduleTorsionLiveFrame(180);
+      showToast("实时扭摆测量已启动");
+    } catch (error) {
+      APP.torsion.error = `无法启动摄像头：${error.message || "权限被拒绝"}`;
+      stopTorsionLiveAnalysis({ silent: true });
+      renderTorsionLab();
+      showToast(APP.torsion.error);
+    }
+  }
+
+  function stopTorsionLiveAnalysis({ silent = false } = {}) {
+    if (APP.torsion.liveTimer) {
+      clearTimeout(APP.torsion.liveTimer);
+      APP.torsion.liveTimer = 0;
+    }
+    APP.torsion.liveStream?.getTracks?.().forEach((track) => track.stop());
+    APP.torsion.liveStream = null;
+    APP.torsion.liveActive = false;
+    APP.torsion.livePending = false;
+    if (els.torsionVideoPreview?.srcObject) {
+      els.torsionVideoPreview.pause?.();
+      els.torsionVideoPreview.srcObject = null;
+    }
+    clearTorsionLiveOverlay();
+    if (!silent && APP.torsion.liveSeries.length) {
+      APP.torsion.status = "实时测量已停止，可继续查看本次滚动周期结果。";
+      renderTorsionLab();
+      showToast("实时测量已停止");
+    }
+  }
+
+  function scheduleTorsionLiveFrame(delay = 260) {
+    if (!APP.torsion.liveActive) return;
+    if (APP.torsion.liveTimer) clearTimeout(APP.torsion.liveTimer);
+    APP.torsion.liveTimer = window.setTimeout(() => {
+      APP.torsion.liveTimer = 0;
+      captureTorsionLiveFrame().catch(() => {});
+    }, delay);
+  }
+
+  async function captureTorsionLiveFrame() {
+    if (!APP.torsion.liveActive || APP.torsion.livePending) return;
+    const video = els.torsionVideoPreview;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      scheduleTorsionLiveFrame(220);
+      return;
+    }
+    APP.torsion.livePending = true;
+    APP.torsion.liveFrameIndex += 1;
+    try {
+      const blob = await captureVideoFrameBlob(video);
+      if (!blob) throw new Error("无法读取摄像头画面");
+      const form = new FormData();
+      const selectedDetector = els.torsionDetectorSelect?.value || "opencv";
+      form.append("detector", selectedDetector === "yolov5" ? "yolov5" : "opencv");
+      if (Number.isFinite(Number(APP.torsion.liveLastRawAngleDeg))) {
+        form.append("last_angle_deg", String(APP.torsion.liveLastRawAngleDeg));
+      }
+      form.append("image", blob, "torsion-live-frame.jpg");
+      const response = await fetch("/api/physics/torsion/live-frame", { method: "POST", body: form });
+      if (!response.ok) throw new Error(await readApiErrorMessage(response, `实时帧分析失败 (${response.status})`));
+      const frameResult = await response.json();
+      if (!APP.torsion.liveActive) return;
+      appendTorsionLiveFrameResult(frameResult);
+    } catch (error) {
+      if (APP.torsion.liveActive) {
+        APP.torsion.status = error.message || "当前帧未识别到横杆或标记点。";
+        renderTorsionLab();
+      }
+    } finally {
+      APP.torsion.livePending = false;
+      if (APP.torsion.liveActive) scheduleTorsionLiveFrame(260);
+    }
+  }
+
+  function captureVideoFrameBlob(video) {
+    const sourceWidth = video.videoWidth || 0;
+    const sourceHeight = video.videoHeight || 0;
+    if (!sourceWidth || !sourceHeight) return Promise.resolve(null);
+    const maxSide = 720;
+    const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
+    const canvas = captureVideoFrameBlob.canvas || document.createElement("canvas");
+    captureVideoFrameBlob.canvas = canvas;
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return Promise.resolve(null);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.72);
+    });
+  }
+
+  function appendTorsionLiveFrameResult(frameResult) {
+    const rawTheta = Number(frameResult.theta_deg);
+    if (!Number.isFinite(rawTheta)) return;
+    if (APP.torsion.liveAngleOffsetDeg === null) {
+      APP.torsion.liveAngleOffsetDeg = Number.isFinite(Number(APP.torsion.liveInitialAngleDeg))
+        ? Number(APP.torsion.liveInitialAngleDeg) - rawTheta
+        : 0;
+    }
+    APP.torsion.liveLastRawAngleDeg = rawTheta;
+    APP.torsion.liveDetectedFrames += 1;
+    const detector = String(frameResult.detector || "opencv");
+    if (detector === "yolov5") {
+      APP.torsion.liveDetectorHits.yolov5 += 1;
+    } else {
+      APP.torsion.liveDetectorHits.opencv += 1;
+    }
+    APP.torsion.liveLastGeometry = frameResult.geometry || null;
+    APP.torsion.liveFrameSize = {
+      width: Number(frameResult.frame_width) || 0,
+      height: Number(frameResult.frame_height) || 0,
+    };
+    const t = Math.max(0, (performance.now() - APP.torsion.liveStartedAt) / 1000);
+    const theta = rawTheta + APP.torsion.liveAngleOffsetDeg;
+    APP.torsion.liveSeries.push({
+      frame: APP.torsion.liveFrameIndex,
+      t: Number(t.toFixed(4)),
+      theta_deg: Number(theta.toFixed(4)),
+      theta_raw_deg: Number(rawTheta.toFixed(4)),
+      confidence: Number(frameResult.confidence) || 0,
+      method: frameResult.method || "",
+      geometry: frameResult.geometry || null,
+    });
+    if (APP.torsion.liveSeries.length > 600) {
+      APP.torsion.liveSeries.splice(0, APP.torsion.liveSeries.length - 600);
+    }
+    smoothTorsionLiveSeries(APP.torsion.liveSeries);
+    APP.torsion.result = buildTorsionLiveResult(frameResult);
+    APP.torsion.status = APP.torsion.result.period_experimental
+      ? `实时测量中：T ≈ ${formatPendulumNumber(APP.torsion.result.period_experimental, 4)} s，当前角 ${formatPendulumNumber(theta, 2)}°。`
+      : `实时测量中：当前角 ${formatPendulumNumber(theta, 2)}°，正在积累完整振动周期。`;
+    APP.torsion.error = "";
+    drawTorsionLiveOverlay(frameResult, theta);
+    renderTorsionLab();
+  }
+
+  function smoothTorsionLiveSeries(series) {
+    for (let index = 0; index < series.length; index += 1) {
+      const start = Math.max(0, index - 2);
+      const end = Math.min(series.length, index + 3);
+      const windowValues = series.slice(start, end).map((point) => Number(point.theta_deg)).filter(Number.isFinite);
+      const average = windowValues.reduce((sum, value) => sum + value, 0) / Math.max(1, windowValues.length);
+      series[index].theta_smooth_deg = Number(average.toFixed(4));
+    }
+  }
+
+  function buildTorsionLiveResult(frameResult) {
+    const series = APP.torsion.liveSeries.slice(-260);
+    const periodInfo = estimateTorsionLivePeriod(series);
+    const period = Number.isFinite(Number(periodInfo.period)) ? Number(periodInfo.period) : null;
+    const kappaInfo = resolveTorsionLiveKappa();
+    const inertia = period && kappaInfo.kappa ? kappaInfo.kappa * Math.pow(period / (2 * Math.PI), 2) : null;
+    const detectionRate = APP.torsion.liveDetectedFrames / Math.max(1, APP.torsion.liveFrameIndex);
+    const elapsed = series.length >= 2 ? series[series.length - 1].t - series[0].t : 0;
+    const fps = elapsed > 0 ? (series.length - 1) / elapsed : null;
+    return {
+      period_experimental: period ? Number(period.toFixed(4)) : null,
+      moment_inertia: Number.isFinite(inertia) ? Number(inertia.toFixed(8)) : null,
+      torsion_constant: Number.isFinite(kappaInfo.kappa) ? Number(kappaInfo.kappa.toFixed(8)) : null,
+      torsion_constant_source: kappaInfo.source,
+      detector: frameResult.detector || "opencv",
+      detector_requested: frameResult.detector_requested || (els.torsionDetectorSelect?.value || "opencv"),
+      detector_hits: { ...APP.torsion.liveDetectorHits },
+      detector_notes: frameResult.detector_notes || [],
+      detected_points: APP.torsion.liveDetectedFrames,
+      frame_count: APP.torsion.liveFrameIndex,
+      detection_rate: detectionRate,
+      fps,
+      dominant_frequency_hz: period ? 1 / period : null,
+      period_method: period ? "实时峰值滚动估计" : "实时角度检测中",
+      period_intervals: periodInfo.intervals,
+      stability: periodInfo.stability,
+      initial_angle_deg: APP.torsion.liveInitialAngleDeg,
+      angle_offset_deg: APP.torsion.liveAngleOffsetDeg,
+      angle_series: series,
+      live: true,
+      analysis: period
+        ? "实时模式正在逐帧提取扭摆横杆角度，并用最近角度序列的峰值间隔滚动估计周期。周期稳定后可停止测量并记录结果。"
+        : "实时模式已开始提取角度，但完整振动周期样本仍不足；请继续保持拍摄，等待曲线出现多个峰谷。",
+      advice: "实时测量时建议相机固定、画面正对或俯视转盘，让红色横杆或高对比标记完整入镜；若使用 YOLO，请确保后端已加载扭摆杆/标记点权重。",
+    };
+  }
+
+  function resolveTorsionLiveKappa() {
+    const direct = Number(String(els.torsionKappaInput?.value || "").trim());
+    if (Number.isFinite(direct) && direct > 0) {
+      return { kappa: direct, source: "直接输入 κ" };
+    }
+    const inertia = Number(String(els.torsionCalibrationInertiaInput?.value || "").trim());
+    const period = Number(String(els.torsionCalibrationPeriodInput?.value || "").trim());
+    if (Number.isFinite(inertia) && inertia > 0 && Number.isFinite(period) && period > 0) {
+      return { kappa: (4 * Math.PI * Math.PI * inertia) / (period * period), source: "标定法 I0/T0" };
+    }
+    return { kappa: null, source: "未给定" };
+  }
+
+  function estimateTorsionLivePeriod(series) {
+    const points = series
+      .map((point) => ({ t: Number(point.t), y: Number(point.theta_smooth_deg ?? point.theta_deg) }))
+      .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.y))
+      .sort((a, b) => a.t - b.t);
+    if (points.length < 10) {
+      return { period: null, intervals: [], stability: { sample_count: 0, level: "样本不足" } };
+    }
+    const values = points.map((point) => point.y);
+    const center = median(values);
+    const centered = values.map((value) => value - center);
+    const amplitude = percentile(centered, 95) - percentile(centered, 5);
+    if (!Number.isFinite(amplitude) || amplitude < 1.2) {
+      return { period: null, intervals: [], stability: { sample_count: 0, level: "振幅不足" } };
+    }
+    const threshold = Math.max(0.6, amplitude * 0.16);
+    const duration = points[points.length - 1].t - points[0].t;
+    const meanDt = duration / Math.max(1, points.length - 1);
+    const minPeakGap = Math.max(0.35, meanDt * 2.2);
+    const maxima = collectLivePeaks(points, centered, 1, threshold, minPeakGap);
+    const minima = collectLivePeaks(points, centered, -1, threshold, minPeakGap);
+    const intervals = [...peakIntervals(maxima), ...peakIntervals(minima)]
+      .filter((value) => value >= 0.35 && value <= 20)
+      .sort((a, b) => a - b);
+    if (!intervals.length) {
+      return { period: null, intervals: [], stability: { sample_count: 0, level: "周期样本不足" } };
+    }
+    const period = median(intervals);
+    const mean = intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
+    const variance = intervals.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / intervals.length;
+    const std = Math.sqrt(variance);
+    const cv = period > 0 ? (std / period) * 100 : null;
+    const level = intervals.length < 2 ? "样本不足" : cv <= 3 ? "稳定" : cv <= 8 ? "基本稳定" : "波动较大";
+    return {
+      period,
+      intervals: intervals.map((value) => Number(value.toFixed(4))),
+      stability: {
+        sample_count: intervals.length,
+        mean_period: Number(mean.toFixed(4)),
+        std_period: Number(std.toFixed(4)),
+        coefficient_variation_percent: Number.isFinite(cv) ? Number(cv.toFixed(3)) : null,
+        level,
+      },
+    };
+  }
+
+  function collectLivePeaks(points, centered, sign, threshold, minGap) {
+    const peaks = [];
+    for (let index = 1; index < centered.length - 1; index += 1) {
+      const value = centered[index] * sign;
+      if (value < threshold) continue;
+      if (value < centered[index - 1] * sign || value < centered[index + 1] * sign) continue;
+      const current = { t: points[index].t, y: centered[index] };
+      const last = peaks[peaks.length - 1];
+      if (!last || current.t - last.t >= minGap) {
+        peaks.push(current);
+      } else if (Math.abs(current.y) > Math.abs(last.y)) {
+        peaks[peaks.length - 1] = current;
+      }
+    }
+    return peaks;
+  }
+
+  function peakIntervals(peaks) {
+    const intervals = [];
+    for (let index = 1; index < peaks.length; index += 1) {
+      intervals.push(peaks[index].t - peaks[index - 1].t);
+    }
+    return intervals;
+  }
+
+  function median(values) {
+    if (!values.length) return NaN;
+    const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) return NaN;
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  function percentile(values, percent) {
+    const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) return NaN;
+    const index = (Math.min(100, Math.max(0, percent)) / 100) * (sorted.length - 1);
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    if (lower === upper) return sorted[lower];
+    return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+  }
+
+  function drawTorsionLiveOverlay(frameResult, thetaDeg) {
+    const canvas = els.torsionLiveOverlayCanvas;
+    const video = els.torsionVideoPreview;
+    if (!canvas || !video || !APP.torsion.liveActive) return;
+    const rect = video.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const sourceWidth = Number(frameResult.frame_width) || APP.torsion.liveFrameSize?.width || video.videoWidth || width;
+    const sourceHeight = Number(frameResult.frame_height) || APP.torsion.liveFrameSize?.height || video.videoHeight || height;
+    const scale = Math.min(width / Math.max(1, sourceWidth), height / Math.max(1, sourceHeight));
+    const offsetX = (width - sourceWidth * scale) / 2;
+    const offsetY = (height - sourceHeight * scale) / 2;
+    const line = frameResult.geometry?.line;
+    if (Array.isArray(line) && line.length === 4) {
+      const x1 = offsetX + Number(line[0]) * scale;
+      const y1 = offsetY + Number(line[1]) * scale;
+      const x2 = offsetX + Number(line[2]) * scale;
+      const y2 = offsetY + Number(line[3]) * scale;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(47, 127, 120, 0.98)";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.strokeStyle = "rgba(47, 127, 120, 0.35)";
+      [x1, y1, x2, y2].forEach((_, index, arr) => {
+        if (index % 2) return;
+        ctx.beginPath();
+        ctx.arc(arr[index], arr[index + 1], 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+    ctx.fillStyle = "rgba(9, 16, 30, 0.72)";
+    ctx.fillRect(12, 12, 160, 34);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "600 14px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(`θ = ${formatPendulumNumber(thetaDeg, 2)}°`, 24, 34);
+  }
+
+  function clearTorsionLiveOverlay() {
+    const canvas = els.torsionLiveOverlayCanvas;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.classList.add("hidden");
+  }
+
+  function readOptionalPositiveNumber(input, label) {
+    const raw = String(input?.value || "").trim();
+    if (!raw) return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`${label} 必须大于 0。`);
+    }
+    return value;
+  }
+
+  function readOptionalFiniteNumber(input, label) {
+    const raw = String(input?.value || "").trim();
+    if (!raw) return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) {
+      throw new Error(`${label} 必须是有效数值。`);
+    }
+    return value;
+  }
+
+  async function analyzeTorsionVideo({ prompt = "帮我用扭摆法测转动惯量", appendToChat = true } = {}) {
+    if (!APP.auth.token) {
+      showToast("请先登录后再分析扭摆视频");
+      return null;
+    }
+    if (APP.torsion.liveActive) {
+      showToast("实时测量正在进行，停止后可查看滚动周期结果。");
+      return APP.torsion.result;
+    }
+    if (!APP.torsion.videoFile) {
+      openTorsionLabModal();
+      APP.torsion.error = "请先选择扭摆实验视频。";
+      renderTorsionLab();
+      showToast(APP.torsion.error);
+      return null;
+    }
+    if (APP.sending) {
+      showToast("正在处理上一条请求，请稍候");
+      return null;
+    }
+
+    let kappa = null;
+    let calibrationInertia = null;
+    let calibrationPeriod = null;
+    let initialAngleDeg = null;
+    try {
+      kappa = readOptionalPositiveNumber(els.torsionKappaInput, "扭转常量 κ");
+      calibrationInertia = readOptionalPositiveNumber(els.torsionCalibrationInertiaInput, "标定转动惯量 I0");
+      calibrationPeriod = readOptionalPositiveNumber(els.torsionCalibrationPeriodInput, "标定周期 T0");
+      initialAngleDeg = readOptionalFiniteNumber(els.torsionInitialAngleInput, "初始角 θ0");
+      if ((calibrationInertia === null) !== (calibrationPeriod === null)) {
+        throw new Error("标定法需要同时输入 I0 与 T0。");
+      }
+    } catch (error) {
+      APP.torsion.error = error.message || "参数无效";
+      renderTorsionLab();
+      showToast(APP.torsion.error);
+      return null;
+    }
+
+    APP.sending = true;
+    if (els.sendBtn) els.sendBtn.disabled = true;
+    if (els.recordBtn) els.recordBtn.disabled = true;
+    APP.torsion.error = "";
+    APP.torsion.status = "正在进行 YOLO/视觉角度检测与周期计算。";
+    renderTorsionLab();
+
+    let loadingRow = null;
+    if (appendToChat) {
+      appendUserMessage(`[扭摆法测转动惯量]\n${prompt}\n视频文件：${APP.torsion.videoFile.name}`);
+      if (prompt) pushHistory(prompt);
+      loadingRow = appendLoadingMessage();
+    }
+
+    try {
+      const form = new FormData();
+      form.append("session_id", APP.sessionId);
+      if (kappa !== null) form.append("torsion_constant", String(kappa));
+      if (calibrationInertia !== null) form.append("calibration_inertia", String(calibrationInertia));
+      if (calibrationPeriod !== null) form.append("calibration_period", String(calibrationPeriod));
+      if (initialAngleDeg !== null) form.append("initial_angle_deg", String(initialAngleDeg));
+      form.append("detector", els.torsionDetectorSelect?.value || "auto");
+      form.append("message", prompt || "帮我用扭摆法测转动惯量");
+      form.append("video", APP.torsion.videoFile, APP.torsion.videoFile.name || "torsion-video.webm");
+
+      const result = await runWithBusyButton(els.torsionAnalyzeBtn, "分析中", async () => {
+        const response = await fetch("/api/physics/torsion/analyze", { method: "POST", body: form });
+        if (!response.ok) throw new Error(await readApiErrorMessage(response, `扭摆分析失败 (${response.status})`));
+        return await response.json();
+      });
+
+      APP.torsion.result = result;
+      APP.torsion.status = result.processed_video_url ? "扭摆测量完成，正在加载处理后视频。" : "扭摆测量完成。";
+      APP.torsion.error = "";
+      renderTorsionLab();
+      loadTorsionProcessedVideo(result).catch(() => {});
+      showToast("扭摆法测转动惯量完成");
+      if (appendToChat) {
+        loadingRow?.remove();
+        await hydrateSession();
+      }
+      return result;
+    } catch (error) {
+      loadingRow?.remove();
+      APP.torsion.error = error.message || "扭摆视频分析失败";
+      renderTorsionLab();
+      if (appendToChat) appendAgentMessage(`扭摆视频分析失败：${APP.torsion.error}`);
+      showToast(APP.torsion.error);
+      return null;
+    } finally {
+      APP.sending = false;
+      if (els.sendBtn) els.sendBtn.disabled = false;
+      if (els.recordBtn) els.recordBtn.disabled = false;
+      scrollChatToBottom();
+      refreshQuickJumpPanel();
+    }
+  }
+
+  function buildTorsionCurveSvg(result) {
+    const series = Array.isArray(result.angle_series) ? result.angle_series : [];
+    if (series.length < 2) return '<div class="pendulum-placeholder">角度序列不足，无法绘制曲线。</div>';
+    const width = 760;
+    const height = 270;
+    const pad = { left: 54, right: 24, top: 24, bottom: 42 };
+    const times = series.map((point) => Number(point.t)).filter(Number.isFinite);
+    const values = series.map((point) => Number(point.theta_smooth_deg ?? point.theta_deg)).filter(Number.isFinite);
+    if (times.length < 2 || values.length < 2) return '<div class="pendulum-placeholder">角度时间序列不足，无法绘制曲线。</div>';
+    const minT = Math.min(...times);
+    const maxT = Math.max(...times);
+    const minV = Math.min(...values);
+    const maxV = Math.max(...values);
+    const xScale = (value) => pad.left + ((value - minT) / Math.max(maxT - minT, 1e-9)) * (width - pad.left - pad.right);
+    const yScale = (value) => pad.top + (1 - (value - minV) / Math.max(maxV - minV, 1e-9)) * (height - pad.top - pad.bottom);
+    const path = series.map((point, index) => {
+      const x = xScale(Number(point.t));
+      const y = yScale(Number(point.theta_smooth_deg ?? point.theta_deg));
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }).join(" ");
+    const xTicks = [minT, minT + (maxT - minT) / 2, maxT];
+    const yZero = yScale(0);
+    return `
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="扭摆角度周期曲线">
+        <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="#f8fbff" />
+        ${xTicks.map((tick) => `<line x1="${xScale(tick)}" y1="${pad.top}" x2="${xScale(tick)}" y2="${height - pad.bottom}" stroke="#dfe8f1" />`).join("")}
+        <line x1="${pad.left}" y1="${Math.max(pad.top, Math.min(height - pad.bottom, yZero))}" x2="${width - pad.right}" y2="${Math.max(pad.top, Math.min(height - pad.bottom, yZero))}" stroke="#b7c5d5" stroke-dasharray="5 7" />
+        <path d="${path}" fill="none" stroke="#2f7f78" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+        <line x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}" stroke="#425673" stroke-width="1.6" />
+        <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}" stroke="#425673" stroke-width="1.6" />
+        ${xTicks.map((tick) => `<text x="${xScale(tick)}" y="${height - 16}" text-anchor="middle" fill="#51627b" font-size="12">${escapeHtml(formatPendulumNumber(tick, 2))}</text>`).join("")}
+        <text x="${width - 54}" y="${height - 16}" fill="#263954" font-size="13" font-weight="700">t / s</text>
+        <text x="20" y="92" fill="#263954" font-size="13" font-weight="700" transform="rotate(-90 20 92)">θ / deg</text>
+      </svg>
+    `;
+  }
+
+  function buildTorsionSummaryMarkup(result) {
+    const stability = result.stability || {};
+    const inertiaLine = Number.isFinite(Number(result.moment_inertia))
+      ? `转动惯量 <code>${escapeHtml(formatPendulumNumber(result.moment_inertia, 8))} kg·m²</code>。`
+      : "未输入 κ 或标定数据，暂只输出扭摆周期。";
+    const items = [
+      `<div class="data-lab-summary-item">扭摆周期 <code>${escapeHtml(formatPendulumNumber(result.period_experimental, 4))} s</code>，${inertiaLine}</div>`,
+      `<div class="data-lab-summary-item">检测器：请求 <code>${escapeHtml(result.detector_requested || "auto")}</code>，实际 <code>${escapeHtml(result.detector || "opencv")}</code>；有效检测率：<code>${escapeHtml(formatPendulumPercent(result.detection_rate))}</code>。</div>`,
+      `<div class="data-lab-summary-item">周期方法：<code>${escapeHtml(result.period_method || "角度序列分析")}</code>；κ 来源：<code>${escapeHtml(result.torsion_constant_source || "未给定")}</code>。</div>`,
+      ...(Number.isFinite(Number(result.initial_angle_deg)) ? [`<div class="data-lab-summary-item">初始角校准：<code>θ0 = ${escapeHtml(formatPendulumNumber(result.initial_angle_deg, 2))}°</code>，角度整体偏移 <code>${escapeHtml(formatPendulumNumber(result.angle_offset_deg, 2))}°</code>。</div>`] : []),
+      `<div class="data-lab-summary-item">稳定性：<code>${escapeHtml(stability.level || "样本不足")}</code>${Number.isFinite(Number(stability.coefficient_variation_percent)) ? `，变异系数 <code>${escapeHtml(formatPendulumNumber(stability.coefficient_variation_percent, 2))}%</code>` : ""}。</div>`,
+      ...(Array.isArray(result.detector_notes) && result.detector_notes.length ? [`<div class="pendulum-explain-block">${escapeHtml(result.detector_notes.join("\n")).replace(/\n/g, "<br>")}</div>`] : []),
+      `<div class="pendulum-explain-block">${escapeHtml(result.analysis || "").replace(/\n/g, "<br>")}</div>`,
+      `<div class="pendulum-advice-block">${escapeHtml(result.advice || "").replace(/\n/g, "<br>")}</div>`,
+    ];
+    return items.join("");
+  }
+
+  function sendTorsionResultToChat() {
+    if (!APP.torsion.result) {
+      showToast("请先完成扭摆法测量。");
+      return;
+    }
+    const result = APP.torsion.result;
+    const prompt = [
+      "请基于刚才的扭摆法视频测量结果，进一步用实验报告语言解释：",
+      `扭摆周期 T = ${formatPendulumNumber(result.period_experimental, 4)} s。`,
+      Number.isFinite(Number(result.moment_inertia))
+        ? `转动惯量 I = ${formatPendulumNumber(result.moment_inertia, 8)} kg·m²，κ = ${formatPendulumNumber(result.torsion_constant, 8)} N·m/rad。`
+        : "尚未输入扭转常量 κ 或标定数据，因此暂未计算转动惯量。",
+      "请说明周期测量方法、误差来源、YOLO 标记点要求，并给出下一次实验的操作改进建议。",
+    ].join("\n");
+    closeTorsionLabModal({ skipHistory: true });
+    els.chatInput.value = prompt;
+    autoResizeTextarea(els.chatInput);
+    sendMessage(prompt, { skipTorsionRouting: true });
+  }
+
+  function shouldRouteToTorsionAnalysis(text, options = {}) {
+    if (options.skipTorsionRouting || options.hiddenImage || options.externalLabContext || APP.pendingImage || APP.pendingAudio) return false;
+    const clean = String(text || "").trim();
+    if (!clean) return false;
+    // Conceptual/explanatory questions (原理、公式、为什么...) should get a normal
+    // chat answer, not force the video-upload modal open.
+    if (/(?:为什么|原理|公式|推导|解释|讲解|区别|对比|意义|怎么理解|是什么|什么是|why|what is|explain)/i.test(clean)) {
+      return false;
+    }
+    return /(?:扭摆|转动惯量|惯量|torsion|moment of inertia)/i.test(clean)
+      && /(?:视频|上传|拍摄|录像|帮我测|帮我分析|自动测量|自动分析)/i.test(clean);
+  }
+
+  function torsionDetectorHint(detector) {
+    if (detector === "yolo-seg") return "将严格使用 YOLO-Seg 杆子分割模型：检测杆子 mask，用 PCA 主方向计算角度。";
+    if (detector === "yolov5") return "将严格使用 YOLOv5；建议训练 torsion_rod 杆子类别，或 torsion_marker 标记点类别。";
+    if (detector === "opencv") return "将使用传统视觉提取横杆/标记点角度，适合作为快速回退。";
+    return "自动模式会优先尝试 YOLO-Seg 杆子分割，未配置权重时依次回退 YOLOv5、传统视觉。";
+  }
+
   function initializeDataLab() {
     if (!els.dataLabModal) return;
     applyDataLabStateToInputs();
@@ -6096,6 +8023,9 @@
             <span id="newtonPanelHint">引入中心空气隙、倾斜与局部缺陷后，可观察牛顿环的偏移与畸变。</span>
           </div>
           <div class="newton-panel-actions">
+            <button id="newtonRecordBtn" type="button" class="sim-action-btn">记录当前数据</button>
+            <button id="newtonSaveRecordsBtn" type="button" class="sim-action-btn sim-action-btn-secondary">保存表格</button>
+            <button id="newtonClearRecordsBtn" type="button" class="sim-action-btn sim-action-btn-secondary">清空记录</button>
             <button id="newtonExportBtn" type="button" class="sim-action-btn">保存图像</button>
             <button id="newtonResetBtn" type="button" class="sim-action-btn sim-action-btn-secondary">恢复理想接触</button>
           </div>
@@ -6239,6 +8169,36 @@
           <button id="newtonExportChartBtn" type="button" class="newton-chart-save-btn">保存曲线</button>
           <canvas id="newtonChartCanvas" class="newton-chart-canvas"></canvas>
         </div>
+        <div class="newton-records" aria-live="polite">
+          <div class="newton-records-head">
+            <strong>仿真数据记录表</strong>
+            <span id="newtonRecordMeta">点击“记录当前数据”后，将把上方仿真参数写入表格。</span>
+          </div>
+          <div class="newton-record-table-wrap">
+            <table class="newton-record-table">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th>记录时间</th>
+                  <th>λ / nm</th>
+                  <th>R / mm</th>
+                  <th>h₀ / nm</th>
+                  <th>I_c / %</th>
+                  <th>α / μrad</th>
+                  <th>缺陷中心 / mm</th>
+                  <th>r_d / mm</th>
+                  <th>Δh_d / nm</th>
+                  <th>可见环数</th>
+                </tr>
+              </thead>
+              <tbody id="newtonRecordTableBody">
+                <tr>
+                  <td colspan="11" class="newton-record-empty">暂无记录</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       `;
 
       const metrics = controlsRoot.querySelector(".sim-metrics");
@@ -6301,6 +8261,23 @@
         exportNewtonSimulationImage().catch((error) => {
           showToast(`导出图像失败：${error.message || "未知错误"}`);
         });
+      });
+
+      panel.querySelector("#newtonRecordBtn")?.addEventListener("click", () => {
+        if (SIM.currentExpId !== "newton-rings") return;
+        recordNewtonMeasurement();
+      });
+
+      panel.querySelector("#newtonSaveRecordsBtn")?.addEventListener("click", () => {
+        if (SIM.currentExpId !== "newton-rings") return;
+        saveNewtonMeasurementData().catch((error) => {
+          showToast(`保存表格失败：${error.message || "未知错误"}`);
+        });
+      });
+
+      panel.querySelector("#newtonClearRecordsBtn")?.addEventListener("click", () => {
+        if (SIM.currentExpId !== "newton-rings") return;
+        clearNewtonMeasurementRecords();
       });
 
       panel.querySelector("#newtonExportChartBtn")?.addEventListener("click", () => {
@@ -6426,6 +8403,11 @@
     });
   }
 
+  function formatNewtonRecordNumber(value, digits = 1) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric.toFixed(digits) : "--";
+  }
+
   function updateNewtonActualMeasurement(key, rawValue) {
     const p = SIM.params["newton-rings"];
     if (!(key in p)) return;
@@ -6493,6 +8475,59 @@
         ? "已记录当前仿真数据；如需百分差，请先补入实测值。"
         : "已记录当前测量点，可继续保存为 CSV。"
     );
+  }
+
+  function clearNewtonMeasurementRecords() {
+    const p = SIM.params["newton-rings"];
+    p.measurementRecords = [];
+    syncNewtonPanelFromState();
+    showToast("已清空牛顿环仿真数据记录表。");
+  }
+
+  function renderNewtonMeasurementRecords(panel) {
+    const p = SIM.params["newton-rings"];
+    const records = Array.isArray(p.measurementRecords) ? p.measurementRecords : [];
+    const body = panel?.querySelector("#newtonRecordTableBody");
+    const meta = panel?.querySelector("#newtonRecordMeta");
+    const clearBtn = panel?.querySelector("#newtonClearRecordsBtn");
+    const saveBtn = panel?.querySelector("#newtonSaveRecordsBtn");
+    if (!body) return;
+
+    if (meta) {
+      meta.textContent = records.length
+        ? `已记录 ${records.length} 组仿真数据，可继续改变参数并追加记录。`
+        : "点击“记录当前数据”后，将把上方仿真参数写入表格。";
+    }
+    if (clearBtn) clearBtn.disabled = records.length === 0;
+    if (saveBtn) saveBtn.disabled = records.length === 0;
+
+    if (!records.length) {
+      body.innerHTML = `
+        <tr>
+          <td colspan="11" class="newton-record-empty">暂无记录</td>
+        </tr>
+      `;
+      return;
+    }
+
+    body.innerHTML = records.map((record, index) => {
+      const defectCenter = `(${formatNewtonSignedValue(Number(record.defectXmm), 2)}, ${formatNewtonSignedValue(Number(record.defectYmm), 2)})`;
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(formatNewtonRecordedAt(record.recordedAt))}</td>
+          <td>${escapeHtml(formatNewtonRecordNumber(record.lambdaNm, 1))}</td>
+          <td>${escapeHtml(formatNewtonRecordNumber(record.curvatureMm, 0))}</td>
+          <td>${escapeHtml(formatNewtonRecordNumber(record.simCenterGapNm, 1))}</td>
+          <td>${escapeHtml(formatNewtonRecordNumber(record.simCenterIntensityPct, 2))}</td>
+          <td>${escapeHtml(formatNewtonRecordNumber(record.tiltUrad, 1))}</td>
+          <td>${escapeHtml(defectCenter)}</td>
+          <td>${escapeHtml(formatNewtonRecordNumber(record.defectRadiusMm, 2))}</td>
+          <td>${escapeHtml(formatNewtonRecordNumber(record.defectDepthNm, 1))}</td>
+          <td>${escapeHtml(String(record.visibleRingCount ?? "--"))}</td>
+        </tr>
+      `;
+    }).join("");
   }
 
   async function saveNewtonMeasurementData() {
@@ -6607,6 +8642,7 @@
       summary.textContent = `当前仿真：中心空气隙 h₀=${p.centerGapNm.toFixed(0)} nm，中心归一化光强约 ${(centerIntensity * 100).toFixed(1)}%。${defectText}`;
     }
 
+    renderNewtonMeasurementRecords(panel);
     renderNewtonChartPanel();
   }
 
@@ -10237,6 +12273,32 @@
     const hiddenImage = options.hiddenImage || null;
     const effectiveImage = hiddenImage || APP.pendingImage;
     const effectiveAudio = hiddenImage ? null : APP.pendingAudio;
+    if (shouldRouteToTorsionAnalysis(text, options)) {
+      if (!APP.torsion.videoFile) {
+        openTorsionLabModal();
+        APP.torsion.error = "请先选择扭摆实验视频，再进行自动测量。";
+        renderTorsionLab();
+        showToast(APP.torsion.error);
+        return;
+      }
+      els.chatInput.value = "";
+      autoResizeTextarea(els.chatInput);
+      await analyzeTorsionVideo({ prompt: text || "帮我用扭摆法测转动惯量" });
+      return;
+    }
+    if (shouldRouteToPendulumAnalysis(text, options)) {
+      if (!APP.pendulum.videoFile) {
+        openPendulumLabModal();
+        APP.pendulum.error = "请先选择或录制单摆实验视频，再进行自动测量。";
+        renderPendulumLab();
+        showToast(APP.pendulum.error);
+        return;
+      }
+      els.chatInput.value = "";
+      autoResizeTextarea(els.chatInput);
+      await analyzePendulumVideo({ prompt: text || "帮我测单摆周期" });
+      return;
+    }
     if (APP.sending || (!text && !effectiveImage && !effectiveAudio)) return;
 
     APP.sending = true;

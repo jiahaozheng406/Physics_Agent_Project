@@ -3155,6 +3155,11 @@ body::before {
   z-index: 64;
 }
 
+#pendulumLabModal,
+#torsionLabModal {
+  z-index: 64;
+}
+
 #webCameraModal {
   z-index: 65;
 }
@@ -3522,6 +3527,13 @@ body::before {
   box-shadow: 0 10px 20px rgba(34, 55, 90, 0.1);
 }
 
+.sim-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
+}
+
 .sim-action-btn-secondary {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(244, 248, 252, 0.88));
 }
@@ -3763,6 +3775,53 @@ body::before {
   line-height: 1.6;
 }
 
+.newton-record-table-wrap {
+  overflow: auto;
+  border: 1px solid rgba(97, 135, 243, 0.12);
+  border-radius: 12px;
+  background: rgba(248, 251, 255, 0.94);
+}
+
+.newton-record-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.newton-record-table th,
+.newton-record-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(21, 34, 57, 0.07);
+  text-align: center;
+  color: #334862;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.newton-record-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(236, 243, 252, 0.98);
+  color: #23344d;
+  font-weight: 700;
+}
+
+.newton-record-table td {
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.newton-record-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.newton-record-table .newton-record-empty {
+  padding: 16px 10px;
+  font-family: inherit;
+  text-align: center;
+  white-space: normal;
+}
+
 .newton-record-list {
   display: flex;
   flex-direction: column;
@@ -3821,8 +3880,8 @@ body::before {
 
   .sim-action-btn {
     flex: 1 1 0;
-  justify-content: center;
-}
+    justify-content: center;
+  }
 
   .newton-comparison-row {
     grid-template-columns: 1fr;
@@ -4297,6 +4356,239 @@ body::before {
   color: #b23b56;
 }
 
+.pendulum-side-btn,
+.torsion-side-btn {
+  background: linear-gradient(135deg, rgba(97, 135, 243, 0.14), rgba(120, 198, 190, 0.2), rgba(255, 255, 255, 0.9));
+}
+
+.pendulum-lab-modal,
+.torsion-lab-modal {
+  width: min(1120px, 100%);
+  max-height: min(94vh, 980px);
+  border-radius: 24px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.pendulum-lab-header,
+.torsion-lab-header {
+  align-items: center;
+}
+
+.pendulum-lab-header-actions,
+.torsion-lab-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pendulum-lab-header-actions .invoke-agent-btn,
+.pendulum-lab-header-actions .ghost-side-btn,
+.torsion-lab-header-actions .invoke-agent-btn,
+.torsion-lab-header-actions .ghost-side-btn {
+  min-height: 42px;
+}
+
+.pendulum-lab-body,
+.torsion-lab-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(310px, 380px) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.pendulum-lab-form,
+.pendulum-lab-output,
+.torsion-lab-form,
+.torsion-lab-output {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: visible;
+}
+
+.pendulum-video-dropzone {
+  min-height: 148px;
+  border: 1px dashed rgba(47, 127, 120, 0.28);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(248, 252, 255, 0.96), rgba(239, 248, 247, 0.96));
+  color: #37536a;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 18px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.pendulum-video-dropzone i {
+  font-size: 30px;
+  color: #2f7f78;
+}
+
+.pendulum-video-dropzone span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pendulum-video-dropzone:hover,
+.pendulum-video-dropzone.dragover {
+  transform: translateY(-1px);
+  border-color: rgba(79, 114, 255, 0.34);
+  box-shadow: 0 14px 28px rgba(34, 55, 90, 0.1);
+}
+
+.pendulum-video-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pendulum-video-actions .ghost-side-btn {
+  min-height: 44px;
+}
+
+.pendulum-video-actions .recording {
+  border-color: rgba(210, 72, 94, 0.32);
+  color: #9f2f47;
+  background: rgba(255, 237, 241, 0.88);
+}
+
+.pendulum-video-preview {
+  width: 100%;
+  display: block;
+  margin-top: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 34, 57, 0.08);
+  background: #101827;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+
+.torsion-live-stage {
+  position: relative;
+}
+
+.torsion-live-overlay {
+  position: absolute;
+  inset: 12px 0 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+.pendulum-status {
+  margin-top: 12px;
+  min-height: 26px;
+}
+
+.pendulum-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pendulum-curve-plot {
+  min-height: clamp(260px, 38vh, 360px);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(21, 34, 57, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(120, 198, 190, 0.1), transparent 34%),
+    linear-gradient(180deg, #f8fbff, #eef5f8);
+}
+
+.pendulum-curve-plot svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.pendulum-placeholder {
+  min-height: clamp(240px, 34vh, 340px);
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  text-align: center;
+  color: #58667e;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.pendulum-trajectory-canvas {
+  width: 100%;
+  min-height: clamp(260px, 38vh, 360px);
+  display: block;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 34, 57, 0.08);
+  background: #f8fbff;
+}
+
+.pendulum-processed-video {
+  width: 100%;
+  display: block;
+  border-radius: 18px;
+  border: 1px solid rgba(21, 34, 57, 0.08);
+  background: #101827;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+
+.pendulum-processed-placeholder {
+  min-height: clamp(220px, 32vh, 320px);
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  border: 1px dashed rgba(47, 127, 120, 0.22);
+  background: rgba(248, 251, 255, 0.92);
+  color: #58667e;
+  text-align: center;
+  line-height: 1.8;
+  padding: 24px;
+}
+
+.pendulum-chat-btn {
+  min-height: 36px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.pendulum-chat-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pendulum-explain-block,
+.pendulum-advice-block {
+  border: 1px solid rgba(21, 34, 57, 0.08);
+  border-radius: 16px;
+  background: rgba(248, 251, 255, 0.92);
+  padding: 12px 14px;
+  color: #263954;
+  line-height: 1.78;
+}
+
+.pendulum-advice-block {
+  border-color: rgba(47, 127, 120, 0.16);
+  background: rgba(240, 249, 247, 0.9);
+}
+
 .markdown-body p {
   margin: 0.45rem 0;
 }
@@ -4670,13 +4962,29 @@ body::before {
     max-height: calc(100dvh - 48px);
   }
 
+  .pendulum-lab-modal,
+  .torsion-lab-modal {
+    width: 100%;
+    max-height: calc(100dvh - 48px);
+  }
+
+  .pendulum-lab-body,
+  .torsion-lab-body {
+    grid-template-columns: 1fr;
+  }
+
   .data-lab-form,
-  .data-lab-output {
+  .data-lab-output,
+  .pendulum-lab-form,
+  .pendulum-lab-output,
+  .torsion-lab-form,
+  .torsion-lab-output {
     overflow: visible;
     padding-right: 0;
   }
 
-  .data-lab-metrics {
+  .data-lab-metrics,
+  .pendulum-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -5055,8 +5363,22 @@ body::before {
     overflow: hidden;
   }
 
+  .pendulum-lab-modal {
+    width: 100%;
+    max-height: none;
+    height: 100%;
+    border-radius: 22px;
+    padding: 12px;
+    overflow: hidden;
+  }
+
   .data-lab-header {
     align-items: flex-start;
+  }
+
+  .pendulum-lab-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .data-lab-header-actions {
@@ -5065,7 +5387,22 @@ body::before {
     grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
   }
 
+  .pendulum-lab-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr) 44px;
+  }
+
   .data-lab-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    gap: 14px;
+    padding-right: 2px;
+  }
+
+  .pendulum-lab-body {
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -5084,6 +5421,11 @@ body::before {
 
   .data-lab-card-head {
     flex-direction: column;
+  }
+
+  .pendulum-video-actions,
+  .pendulum-metrics {
+    grid-template-columns: 1fr;
   }
 
   .data-lab-card-meta {
@@ -5174,7 +5516,32 @@ body::before {
     padding: 12px !important;
   }
 
+  #pendulumLabModal .pendulum-lab-modal,
+  #torsionLabModal .torsion-lab-modal {
+    display: block !important;
+    width: 100% !important;
+    min-height: calc(100dvh - 16px);
+    max-height: none !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    padding: 12px !important;
+  }
+
   #dataLabModal .data-lab-header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    padding-bottom: 4px;
+    background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(248, 251, 255, 0.86));
+  }
+
+  #pendulumLabModal .pendulum-lab-header,
+  #torsionLabModal .torsion-lab-header {
     display: flex;
     flex-direction: column;
     align-items: stretch !important;
@@ -5194,11 +5561,34 @@ body::before {
     align-items: stretch;
   }
 
+  #pendulumLabModal .pendulum-lab-header-actions,
+  #torsionLabModal .torsion-lab-header-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr) 44px;
+    gap: 10px;
+    align-items: stretch;
+  }
+
   #dataLabModal .data-lab-header-actions > button {
     min-height: 44px;
   }
 
+  #pendulumLabModal .pendulum-lab-header-actions > button,
+  #torsionLabModal .torsion-lab-header-actions > button {
+    min-height: 44px;
+  }
+
   #dataLabModal .data-lab-body {
+    display: block !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
+
+  #pendulumLabModal .pendulum-lab-body,
+  #torsionLabModal .torsion-lab-body {
     display: block !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -5215,8 +5605,24 @@ body::before {
     padding-right: 0 !important;
   }
 
+  #pendulumLabModal .pendulum-lab-form,
+  #pendulumLabModal .pendulum-lab-output,
+  #torsionLabModal .torsion-lab-form,
+  #torsionLabModal .torsion-lab-output {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
+
   #dataLabModal .data-lab-form > .data-lab-card,
   #dataLabModal .data-lab-output > .data-lab-card {
+    margin: 0 0 12px !important;
+  }
+
+  #pendulumLabModal .pendulum-lab-form > .data-lab-card,
+  #pendulumLabModal .pendulum-lab-output > .data-lab-card {
     margin: 0 0 12px !important;
   }
 
@@ -5224,7 +5630,15 @@ body::before {
     margin-bottom: 0 !important;
   }
 
+  #pendulumLabModal .pendulum-lab-output > .data-lab-card:last-child {
+    margin-bottom: 0 !important;
+  }
+
   #dataLabModal .data-lab-card {
+    overflow: hidden;
+  }
+
+  #pendulumLabModal .data-lab-card {
     overflow: hidden;
   }
 
@@ -5232,6 +5646,13 @@ body::before {
   #dataLabModal .data-lab-grid-simple,
   #dataLabModal .data-lab-point-entry,
   #dataLabModal .data-lab-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  #pendulumLabModal .data-lab-grid,
+  #pendulumLabModal .data-lab-grid-simple,
+  #pendulumLabModal .pendulum-video-actions,
+  #pendulumLabModal .pendulum-metrics {
     grid-template-columns: 1fr !important;
   }
 
@@ -5245,6 +5666,13 @@ body::before {
 
   #dataLabModal .data-lab-plot,
   #dataLabModal .data-lab-placeholder {
+    min-height: 280px !important;
+    aspect-ratio: auto !important;
+  }
+
+  #pendulumLabModal .pendulum-curve-plot,
+  #pendulumLabModal .pendulum-placeholder,
+  #pendulumLabModal .pendulum-trajectory-canvas {
     min-height: 280px !important;
     aspect-ratio: auto !important;
   }
