@@ -122,7 +122,7 @@ def infer_video(
     min_mask_area: int = 50,
     max_gap_frames: int = 10,
     smooth_method: str = "savgol",
-    savgol_window: int = 11,
+    savgol_window: int = 21,
     savgol_polyorder: int = 3,
     period_method: str = "zero_crossing",
     min_period: float = 0.3,

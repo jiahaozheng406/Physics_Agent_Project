@@ -53,34 +53,23 @@ def save_angle_plot(
     out_path: Path,
     video_name: str = "",
 ) -> None:
-    """
-    Save a two-panel figure:
-      Top   — raw unwrapped angle + smoothed angle with annotated crossings/peaks
-      Bottom— smoothed angle with period arrows
-    """
+    """Save a single angle-time plot with raw and smoothed angle curves."""
     _setup_matplotlib()
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-    fig.suptitle(f"扭摆角度—时间曲线  |  {video_name}", fontsize=13)
+    fig, ax = plt.subplots(1, 1, figsize=(12, 4.8))
+    ax.set_title(f"扭摆角度—时间曲线  |  {video_name}", fontsize=13)
 
     valid = np.isfinite(theta_unwrapped)
     t_v = times[valid]
     raw_v = theta_unwrapped[valid]
     smooth_v = theta_smooth[valid] if np.any(np.isfinite(theta_smooth)) else raw_v
 
-    # --- top panel: raw + smooth ---
-    ax0 = axes[0]
-    ax0.plot(t_v, np.degrees(raw_v), color="#aaaaaa", lw=0.8, label="原始角度")
-    ax0.plot(t_v, np.degrees(smooth_v), color="#1f77b4", lw=1.5, label="平滑角度")
-    ax0.set_ylabel("摆杆角度 θ / °")
-    ax0.legend(loc="upper right", fontsize=9)
-    ax0.grid(True, alpha=0.3)
-
-    # mark zero-crossings
-    for tc in period_result.zero_crossing_times[:20]:
-        ax0.axvline(tc, color="#e74c3c", lw=0.7, alpha=0.6)
+    ax.plot(t_v, np.degrees(raw_v), color="#aaaaaa", lw=0.8, label="原始角度")
+    ax.plot(t_v, np.degrees(smooth_v), color="#1f77b4", lw=1.8, label="平滑角度")
+    ax.set_xlabel("时间 / s")
+    ax.set_ylabel("摆杆角度 θ / °")
+    ax.grid(True, alpha=0.3)
 
     # mark peaks
     if period_result.peak_times:
@@ -90,47 +79,9 @@ def save_angle_plot(
         for pt in peak_arr[:20]:
             idx = np.argmin(np.abs(t_v - pt))
             peak_y.append(np.degrees(smooth_v[idx]))
-        ax0.scatter(peak_arr[:20], peak_y, color="#e67e22", s=40, zorder=5, label="峰值点")
-        ax0.legend(loc="upper right", fontsize=9)
+        ax.scatter(peak_arr[:20], peak_y, color="#e67e22", s=40, zorder=5, label="峰值点")
 
-    # --- bottom panel: smooth + period annotation ---
-    ax1 = axes[1]
-    ax1.plot(t_v, np.degrees(smooth_v), color="#1f77b4", lw=1.8)
-    ax1.set_xlabel("时间 / s")
-    ax1.set_ylabel("摆杆角度 θ / °")
-    ax1.grid(True, alpha=0.3)
-
-    # draw period double-arrows between consecutive zero-crossings
-    zc = period_result.zero_crossing_times
-    if len(zc) >= 2:
-        y_arrow = float(np.degrees(np.nanmax(smooth_v))) * 0.85
-        for i in range(min(3, len(zc) - 1)):
-            t0, t1 = zc[i], zc[i + 1]
-            T_shown = t1 - t0
-            mid = (t0 + t1) / 2
-            ax1.annotate(
-                "", xy=(t1, y_arrow), xytext=(t0, y_arrow),
-                arrowprops=dict(arrowstyle="<->", color="#e74c3c", lw=1.5)
-            )
-            ax1.text(mid, y_arrow * 1.05,
-                     f"T={T_shown:.3f}s", ha="center", fontsize=8, color="#e74c3c")
-
-    # result text box
-    T = period_result.T_final
-    method = period_result.method_used
-    std = period_result.std_period
-    if T is not None:
-        info = (
-            f"T_final = {T:.4f} s\n"
-            f"方法: {method}\n"
-            f"标准差: {std:.4f} s" if std else f"T_final = {T:.4f} s\n方法: {method}"
-        )
-        ax1.text(
-            0.01, 0.97, info,
-            transform=ax1.transAxes,
-            va="top", ha="left", fontsize=9,
-            bbox=dict(boxstyle="round,pad=0.4", facecolor="#f0f4ff", alpha=0.8),
-        )
+    ax.legend(loc="upper right", fontsize=9)
 
     plt.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)

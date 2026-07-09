@@ -30,7 +30,7 @@ angle:
   min_mask_pixels: 20        # minimum non-zero pixels for PCA
   max_gap_frames: 10         # linear-interpolate gaps shorter than this
   smooth_method: savgol      # "savgol" | "moving_avg"
-  savgol_window: 11
+  savgol_window: 21
   savgol_polyorder: 3
 
 # --- Period estimation ---
